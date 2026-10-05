@@ -166,51 +166,91 @@ def shares_partidos(m, pres_share_renan):
     return nrs, sh / sh.sum()
 
 
-def escrever_api(destino_api: Path, muns, linhas_cand, linhas_det, linhas_part):
-    """Grava os mesmos resultados no formato JSON 'dados-simplificados' da API de divulgação do TSE."""
+def escrever_api(destino_api: Path, muns, linhas_cand, linhas_det, linhas_part, vagas_part, cands):
+    """Grava os mesmos resultados no formato da API de divulgação de 2026 (arquivo "u" unificado + eleitos).
+
+    Estrutura igual à real: carg[] → fed[] / agr[] (vag) → par[] (tvtn, tvtl) → cand[] (sqcand, vap, dvt);
+    e{te,c,a}; v{vv,vb,tvn}. Um .json.gz por município × cargo em <eleição>/<uf>/, como o download grava.
+    """
+    import gzip
     import json
-    eleicoes = {1: "620", 3: "621", 5: "621", 6: "621", 7: "621", 8: "621"}
+    ele_de = {1: "6257", 3: "6259", 5: "6259", 6: "6259", 7: "6259", 8: "6259"}
     agg_c: dict = {}
     for c, m, zona, q, cargo in linhas_cand:
-        chave = (m["cd"], cargo, c["sq"])
-        agg_c[chave] = agg_c.get(chave, (c, 0))[0], agg_c.get(chave, (c, 0))[1] + q
+        agg_c[(m["cd"], cargo, c["sq"])] = agg_c.get((m["cd"], cargo, c["sq"]), 0) + q
     agg_d: dict = {}
     for x in linhas_det:
-        d = agg_d.setdefault((x["m"]["cd"], x["cargo"]), dict(e=0, c=0, a=0, vb=0, tvn=0, vv=0))
-        d["e"] += x["aptos"]; d["c"] += x["comp"]; d["a"] += x["abst"]
-        d["vb"] += x["br"]; d["tvn"] += x["nu"]; d["vv"] += x["nom"] + x["leg"]
+        d = agg_d.setdefault((x["m"]["cd"], x["cargo"]), dict(te=0, c=0, a=0, vb=0, tvn=0, vv=0, vl=0))
+        d["te"] += x["aptos"]; d["c"] += x["comp"]; d["a"] += x["abst"]
+        d["vb"] += x["br"]; d["tvn"] += x["nu"]; d["vv"] += x["nom"] + x["leg"]; d["vl"] += x["leg"]
     agg_l: dict = {}
     for x in linhas_part:
         agg_l[(x["m"]["cd"], x["cargo"], x["p"])] = agg_l.get((x["m"]["cd"], x["cargo"], x["p"]), 0) + x["leg"]
-    por_mun = {m["cd"]: m for m in muns}
+    por_sq = {c["sq"]: c for c in cands}
     cands_por: dict = {}
-    for (cd, cargo, _), (c, q) in agg_c.items():
-        cands_por.setdefault((cd, cargo), []).append((c, q))
-    for ele in sorted(set(eleicoes.values())):
+    for (cd, cargo, sq), q in agg_c.items():
+        cands_por.setdefault((cd, cargo), []).append((por_sq[sq], q))
+    feds = {"FE BRASIL": ("101", [13, 65]), "FE PSOL REDE": ("102", [50])}
+    fed_de = {p: (nome, n) for nome, (n, ps) in feds.items() for p in ps}
+
+    for ele in sorted(set(ele_de.values())):
         abr = {}
         for m in muns:
-            if ele == "621" and m["uf"] == "ZZ":
+            if ele == "6259" and m["uf"] == "ZZ":
                 continue
-            abr.setdefault(m["uf"], []).append({"cd": f"{m['cd']:05d}", "nm": m["nome"], "c": "S" if m["capital"] else "N",
+            abr.setdefault(m["uf"], []).append({"cd": f"{m['cd']:05d}", "nm": m["nome"], "c": "s" if m["capital"] else "n",
                                                 "z": [f"{z:04d}" for z, _ in m["zonas"]]})
-        cfg_mun = {"abr": [{"cd": uf, "ds": uf, "mu": mu} for uf, mu in abr.items()]}
+        cfg_mun = {"abr": [{"cd": uf.lower(), "ds": uf, "mu": mu} for uf, mu in abr.items()]}
         (destino_api / ele).mkdir(parents=True, exist_ok=True)
-        (destino_api / ele / f"mun-e{int(ele):06d}-cm.json").write_text(json.dumps(cfg_mun, ensure_ascii=False))
+        (destino_api / ele / f"mun-e{int(ele):06d}-cm.json").write_text(json.dumps(cfg_mun, ensure_ascii=False),
+                                                                         encoding="utf-8")
+    por_mun = {m["cd"]: m for m in muns}
     for (cd, cargo), lista in cands_por.items():
-        m, ele = por_mun[cd], eleicoes[cargo]
+        m, ele = por_mun[cd], ele_de[cargo]
+        uf = m["uf"]
+        agrs: dict = {}
+        for c, q in lista:
+            p = c["partido"]
+            fnome, fn = fed_de.get(p, (None, None))
+            id_agr = f"fed{fn}" if fn else f"p{p}"
+            agr = agrs.setdefault(id_agr, {"n": id_agr, "nm": fnome or PARTIDOS.get(p, (str(p),))[0],
+                                          "tp": "f" if fn else "i", "com": "", "vag": 0, "par": {}})
+            par = agr["par"].setdefault(p, {"n": str(p), "sg": PARTIDOS.get(p, (f"P{p}",))[0], "nfed": fn or "",
+                                            "tvtn": 0, "tvtl": str(agg_l.get((cd, cargo, p), 0)), "cand": []})
+            par["tvtn"] += q
+            par["cand"].append({"n": str(c["nr"]), "sqcand": c["sq"], "nm": c["nome"] + " DA SILVA",
+                                "nmu": c["nome"], "dvt": "Válido", "e": "n", "st": "", "vap": str(q)})
+        for id_agr, agr in agrs.items():
+            agr["vag"] = str(sum(vagas_part.get((cargo, uf, p), 0) for p in agr["par"]))
+            for par in agr["par"].values():
+                par["tvtn"] = str(par["tvtn"])
+            agr["par"] = list(agr["par"].values())
         d = agg_d.get((cd, cargo), {})
-        lista = sorted(lista, key=lambda t: -t[1])
-        dados = {"ele": ele, "tpabr": "MU", "cdabr": f"{cd:05d}", **{k: str(v) for k, v in d.items()},
-                 "cand": [{"seq": str(i + 1), "sqcand": c["sq"], "n": str(c["nr"]), "nm": c["nome"], "cc": "",
-                           "e": "s" if c["situacao"].startswith("ELEITO") else "n", "st": c["situacao"].capitalize(),
-                           "dvt": "Válido", "vap": str(q)} for i, (c, q) in enumerate(lista)]}
-        if cargo in (6, 7, 8):
-            dados["agr"] = [{"n": str(p), "sg": PARTIDOS[p][0], "vl": str(agg_l.get((cd, cargo, p), 0))} for p in PARTIDOS]
-        pasta = destino_api / ele / m["uf"].lower()
+        dados = {"ele": ele, "t": "1", "tpabr": "mu", "cdabr": f"{cd:05d}",
+                 "carg": [{"cd": str(cargo), "nmn": NOME_CARGO[cargo].title(),
+                           "fed": [{"n": n, "sg": nome, "nm": f"FEDERAÇÃO {nome[3:]} - {nome}",
+                                    "npar": [str(p) for p in ps]} for nome, (n, ps) in feds.items()],
+                           "agr": list(agrs.values())}],
+                 "e": {"te": str(d.get("te", 0)), "c": str(d.get("c", 0)), "a": str(d.get("a", 0))},
+                 "v": {"vv": str(d.get("vv", 0)), "vb": str(d.get("vb", 0)), "tvn": str(d.get("tvn", 0)),
+                       "vl": str(d.get("vl", 0))}}
+        pasta = destino_api / ele / uf.lower()
         pasta.mkdir(parents=True, exist_ok=True)
-        nome = f"{m['uf'].lower()}{cd:05d}-c{cargo:04d}-e{int(ele):06d}-r.json"
-        (pasta / nome).write_text(json.dumps(dados, ensure_ascii=False))
-    print(f"[sintético] API: {sum(1 for _ in destino_api.glob('*/*/*-r.json'))} arquivos JSON em {destino_api}")
+        nome = f"{uf.lower()}{cd:05d}-c{cargo:04d}-e{int(ele):06d}-u.json.gz"
+        (pasta / nome).write_bytes(gzip.compress(json.dumps(dados, ensure_ascii=False).encode("utf-8")))
+    # Listas oficiais de eleitos: Governador, Senador e Dep. Federal (Dep. Estadual fica sem, como no TSE em 2026)
+    for cargo in (3, 5, 6):
+        abr = {}
+        for c in cands:
+            if c["cargo"] == cargo and c["situacao"].startswith("ELEITO"):
+                abr.setdefault(c["uf"], []).append({"sqcand": c["sq"], "nmu": c["nome"], "n": str(c["nr"]),
+                                                    "sgp": PARTIDOS[c["partido"]][0]})
+        arq = {"abr": [{"tpabr": "uf", "cdabr": uf.lower(), "cand": lista} for uf, lista in abr.items()]}
+        (destino_api / "6259" / "br").mkdir(parents=True, exist_ok=True)
+        (destino_api / "6259" / "br" / f"br-c{cargo:04d}-e006259-e.json.gz").write_bytes(
+            gzip.compress(json.dumps(arq, ensure_ascii=False).encode("utf-8")))
+    total = sum(1 for _ in destino_api.glob("*/*/*-u.json.gz"))
+    print(f"[sintético] API: {total} arquivos no formato da divulgação em {destino_api}")
 
 
 def main(destino: Path, api: Path | None = None):
@@ -322,6 +362,7 @@ def main(destino: Path, api: Path | None = None):
                 linhas_det.append({**det_base, "cargo": cargo, "br": br * mult, "nu": nu * mult, "nom": val * mult, "leg": 0})
 
     # ---------- eleitos (D'Hondt simplificado + QE)
+    vagas_part: dict = {}
     for uf in ufs:
         vc = VAGAS_CAMARA[uf]
         for cargo, vagas in ((6, vc), (7 if uf != "DF" else 8, 24 if uf == "DF" else vagas_assembleia(vc))):
@@ -336,6 +377,8 @@ def main(destino: Path, api: Path | None = None):
                 return votos_p[k] / (cadeiras[k] + 1) * (1 if votos_p[k] >= 0.8 * qe else 1e-6)
             while sum(cadeiras.values()) < vagas:
                 cadeiras[max(votos_p, key=_media)] += 1
+            for p in PARTIDOS:
+                vagas_part[(cargo, uf, p)] = cadeiras[p]
             for p in PARTIDOS:
                 lista = sorted([c for c in por_cargo_uf[(cargo, uf)] if c["partido"] == p],
                                key=lambda c: -tot_cand.get(c["sq"], 0))
@@ -455,7 +498,7 @@ def main(destino: Path, api: Path | None = None):
         ant.setdefault("BR", []).append(linha_cand(c, m, zona, q, 1, ano=ANO_ANT))
     escrever_zip(f"votacao_candidato_munzona_{ANO_ANT}.zip", COLS_VOT, ant)
     if api is not None:
-        escrever_api(api, muns, linhas_cand, linhas_det, linhas_part)
+        escrever_api(api, muns, linhas_cand, linhas_det, linhas_part, vagas_part, cands)
 
 
 if __name__ == "__main__":

@@ -309,5 +309,35 @@ def test_descoberta_e_plano_de_download_com_config_real_2026(tmp_path):
         baixar.REQ_POR_SEGUNDO = taxa
     finally:
         baixar._cliente = original
-    por_cargo = Counter(a.name.split("-c")[1][:4] for a in (tmp_path / "brutos" / "api").glob("*/*/*-u.json"))
+    por_cargo = Counter(a.name.split("-c")[1][:4] for a in (tmp_path / "brutos" / "api").glob("*/*/*-u.json.gz"))
     assert por_cargo == {"0001": 5757, "0003": 5571, "0005": 5571, "0006": 5571, "0007": 5570, "0008": 1}
+
+
+def test_leitor_com_arquivos_reais_da_api_2026(tmp_path):
+    """Arquivos reais do TSE (São Paulo/SP) gravados pela sonda em amostras_api/."""
+    import shutil
+    from missao.carregar import processar_api
+    a = RAIZ / "amostras_api"
+    if not (a / "e6259_mun_u_c0006.json").exists():
+        pytest.skip("amostras_api/ sem arquivos de resultado")
+    mapa = {"e6257_mun_u_c0001.json": "6257/sp/sp71072-c0001-e006257-u.json",
+            "e6259_mun_u_c0006.json": "6259/sp/sp71072-c0006-e006259-u.json",
+            "e6259_mun_u_c0007.json": "6259/sp/sp71072-c0007-e006259-u.json",
+            "e6257_mun-cm.json": "6257/mun-e006257-cm.json", "e6259_mun-cm.json": "6259/mun-e006259-cm.json",
+            "e6259_br_e_c0006.json": "6259/br/br-c0006-e006259-e.json"}
+    for origem, destino in mapa.items():
+        (tmp_path / destino).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(a / origem, tmp_path / destino)
+    t = processar_api(carregar_config(), tmp_path)
+    det = t["detalhe_mun"].set_index("cd_cargo")
+    pres = t["cand_mun"].query("cd_cargo == 1")
+    assert pres.votos.sum() == det.loc[1, "validos"] == 6_552_820          # nominais válidos = válidos
+    assert det.loc[1, "nm_municipio"] == "SÃO PAULO" and det.loc[1, "aptos"] == 9_145_124
+    missao = t["partido_mun"].query("cd_cargo == 6 and nr_partido == 14").iloc[0]
+    assert (missao.votos_nominais, missao.votos_legenda) == (217_235, 6_481)
+    assert t["partido_mun"].query("cd_cargo == 6").votos_total.sum() == det.loc[6, "validos"]  # inclui legenda
+    cu = t["cand_uf"]
+    assert cu.query("cd_cargo == 6 and nm_urna == 'KIM KATAGUIRI'").situacao.iat[0] == "ELEITO"
+    assert (cu.query("cd_cargo == 6").situacao == "ELEITO").sum() == 70        # lista oficial de SP
+    assert (cu.query("cd_cargo == 7").situacao.str.startswith("ELEITO")).sum() == 94  # estimado pelas vagas
+    assert set(pres.sort_values("votos").tail(2).situacao) == {"2º TURNO"}

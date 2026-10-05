@@ -42,7 +42,19 @@ Fonte principal: [Portal de Dados Abertos do TSE](https://dadosabertos.tse.jus.b
 | `perfil_eleitorado_2026` | sexo, idade e escolaridade do eleitorado por município |
 | `votacao_candidato_munzona_2022` | base de comparação (voto esperado e origem dos votos) |
 
-Logo após a eleição o TSE publica os consolidados de 2026 **só com os cabeçalhos** (zips de poucos KB) e os resultados ficam apenas na API de divulgação (`resultados.tse.jus.br`). O pipeline detecta zips sem dados e usa a API; a sigla do partido, que a API não traz, vem do `consulta_cand`. Nessa fonte não há votação por zona eleitoral. `python -m missao baixar` tenta o portal e, se o ano ainda não estiver publicado, cai para a API (`--fonte api` força). O parser da API é tolerante a mudanças de formato, mas confira o resultado com `make conferir`. Se algo não bater, `python -m missao diagnosticar` mostra o layout de cada zip (CSVs, colunas, linhas por cargo) e o que foi extraído. Para o formato da API, `python -m missao sondar [--eleicoes NNN …]` grava respostas reais de um município de amostra em `amostras_api/`.
+Logo após a eleição o TSE publica os consolidados de 2026 **só com os cabeçalhos** (zips de poucos KB) e os resultados ficam apenas na API de divulgação (`resultados.tse.jus.br`). O pipeline detecta zips sem dados e usa a API. Nessa fonte não há votação por zona eleitoral.
+
+Formato da API em 2026 (descoberto com `python -m missao sondar`; amostras reais em `amostras_api/`):
+
+| Item | Endereço / campo |
+|---|---|
+| Eleições | `comum/config/ele-c.json` → `pl[c=ele2026].e[]`: 6257 (federal, cargo 1) e 6259 (estadual, cargos 3, 5, 6, 7, 8) |
+| Municípios | `ele2026/<eleição>/config/mun-e00<eleição>-cm.json` (5.571 + 186 no exterior) |
+| Resultado por município × cargo | `ele2026/<eleição>/dados/<uf>/<uf><município>-c<cargo>-e00<eleição>-u.json` (≈ 28 mil arquivos) |
+| Estrutura do resultado | `carg[].agr[]` (agremiação, `vag` = vagas na UF) → `par[]` (`tvtn` nominais, `tvtl` legenda) → `cand[]` (`vap`, `dvt`); `e` (`te`, `c`, `a`); `v` (`vv`, `vb`, `tvn`) |
+| Eleitos por UF | `ele2026/<eleição>/dados/br/br-c<cargo>-e00<eleição>-e.json`; onde ainda não há lista, os eleitos dos proporcionais são estimados pelas vagas da agremiação |
+
+O download respeita o limite do TSE (100 requisições/s por IP; usa 40/s) e grava os JSON compactados (`.json.gz`). `python -m missao baixar` tenta o portal e, se o ano ainda não estiver publicado, cai para a API (`--fonte api` força). O parser da API é tolerante a mudanças de formato, mas confira o resultado com `make conferir`. Se algo não bater, `python -m missao diagnosticar` mostra o layout de cada zip (CSVs, colunas, linhas por cargo) e o que foi extraído. Para o formato da API, `python -m missao sondar [--eleicoes NNN …]` grava respostas reais de um município de amostra em `amostras_api/`.
 
 **Ambiente na nuvem do Claude Code:** os domínios `cdn.tse.jus.br`, `resultados.tse.jus.br` e `dadosabertos.tse.jus.br` precisam estar liberados em *Network access* do ambiente. Localmente não há restrição.
 

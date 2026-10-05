@@ -7,6 +7,7 @@ nos primeiros dias após a eleição).
 """
 from __future__ import annotations
 
+import gzip
 import json
 import threading
 import time
@@ -216,7 +217,7 @@ def _url_mun(cfg: Config, modelo: str, ele: str, uf: str, mun: str, cargo: int) 
 def baixar_api(cfg: Config, eleicoes: list[str] | None = None, max_workers: int = 16) -> Path:
     """Baixa o resultado de cada município × cargo da API de divulgação.
 
-    Salva em dados/brutos/api/{eleição}/{uf}/<nome do arquivo do TSE>.
+    Salva em dados/brutos/api/{eleição}/{uf}/<nome do arquivo do TSE>.gz (JSON compactado, ~10× menor).
     `eleicoes`: códigos (ex.: ["6257", "6259"]). Se omitido, descobre pelo ele-c.json.
     """
     base = cfg.dir_brutos / "api"
@@ -276,7 +277,12 @@ def baixar_api(cfg: Config, eleicoes: list[str] | None = None, max_workers: int 
                         if cargo != PRESIDENTE and sg == "zz":
                             continue
                         url = _url_mun(cfg, modelo, ele, sg, mun["cd"], cargo)
-                        tarefas.append((url, base / ele / sg / url.rsplit("/", 1)[1]))
+                        tarefas.append((url, base / ele / sg / (url.rsplit("/", 1)[1] + ".gz")))
+            for cargo in cargos:  # lista oficial de eleitos por UF (Governador, Senador, Deputados)
+                if cargo != PRESIDENTE:
+                    nome = f"br-c{cargo:04d}-e{e6}-e.json"
+                    tarefas.append((f"{cfg.url_divulgacao}/ele{cfg.ano}/{ele}/dados/br/{nome}",
+                                    base / ele / "br" / (nome + ".gz")))
 
         print(f"[api] {len(tarefas)} arquivos candidatos")
         faltando = [(u, d) for u, d in tarefas if not d.exists()]
@@ -304,7 +310,9 @@ def baixar_api(cfg: Config, eleicoes: list[str] | None = None, max_workers: int 
                         continue
                     r.raise_for_status()
                     destino.parent.mkdir(parents=True, exist_ok=True)
-                    destino.write_bytes(r.content)
+                    temporario = destino.with_name(destino.name + ".parcial")
+                    temporario.write_bytes(gzip.compress(r.content) if destino.suffix == ".gz" else r.content)
+                    temporario.replace(destino)
                     return "ok"
                 except httpx.TransportError:
                     time.sleep(2 ** (tentativa + 1))

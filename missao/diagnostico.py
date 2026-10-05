@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from .carregar import _membros_csv, _norm_col, zip_tem_dados
+from .carregar import PADRAO_ARQ, _membros_csv, _norm_col, ler_json, zip_tem_dados
 from .config import Config
 
 CHAVES = ["ANO_ELEICAO", "NR_TURNO", "CD_TIPO_ELEICAO", "CD_CARGO"]
@@ -64,7 +64,7 @@ def diagnosticar(cfg: Config) -> None:
 
     api = cfg.dir_brutos / "api"
     if api.exists():
-        arquivos = [a for a in api.glob("*/*/*.json") if a.name[-7:-5] in ("-r", "-u", "-v")]
+        arquivos = [a for a in api.glob("*/*/*") if PADRAO_ARQ.search(a.name)]
         por = Counter((a.parent.parent.name, a.name.split("-c")[1][:4]) for a in arquivos)
         print(f"\n[diagnóstico] API de divulgação: {len(arquivos)} arquivos; por (eleição, cargo): {dict(por)}")
         desc = api / "eleicoes_descobertas.json"
@@ -73,7 +73,7 @@ def diagnosticar(cfg: Config) -> None:
         for cargo in ("0001", "0006"):
             ex = next((a for a in arquivos if f"-c{cargo}-" in a.name), None)
             if ex:
-                print(f"   exemplo cargo {cargo} ({ex.name}): {json.dumps(json.loads(ex.read_bytes()), ensure_ascii=False)[:1500]}")
+                print(f"   exemplo cargo {cargo} ({ex.name}): {json.dumps(ler_json(ex), ensure_ascii=False)[:1500]}")
 
     proc = cfg.dir_processados
     if proc.exists():

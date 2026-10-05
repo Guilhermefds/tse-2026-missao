@@ -361,28 +361,162 @@ def _int(v) -> int:
         return 0
 
 
-PADRAO_ARQ = re.compile(r"(?P<uf>[a-z]{2})(?P<mun>\d+)-c(?P<cargo>\d{4})-e(?P<ele>\d{6})-(?P<tp>[ruv])\.json$")
+PADRAO_ARQ = re.compile(r"(?P<uf>[a-z]{2})(?P<mun>\d+)-c(?P<cargo>\d{4})-e(?P<ele>\d{6})-(?P<tp>[ruv])\.json(?:\.gz)?$")
+PADRAO_ELEITOS = re.compile(r"br-c(?P<cargo>\d{4})-e(?P<ele>\d{6})-e\.json(?:\.gz)?$")
+
+
+def ler_json(caminho: Path):
+    """JSON da API (UTF-8), gravado puro ou compactado (.gz) pelo download."""
+    import gzip
+    bruto = caminho.read_bytes()
+    return json.loads(gzip.decompress(bruto) if caminho.suffix == ".gz" else bruto)
+
+
+def _sg_federacao(f: dict) -> str:
+    nm = f.get("nm", "")  # ex.: "FEDERAÇÃO BRASIL DA ESPERANÇA - FE BRASIL"
+    return nm.rsplit(" - ", 1)[1].strip() if " - " in nm else f.get("sg", "")
 
 
 def processar_api(cfg: Config, base: Path) -> dict[str, pd.DataFrame]:
-    """Converte os JSON 'dados-simplificados' por município no mesmo esquema do CDN.
+    """Converte os arquivos de resultado da API de divulgação no mesmo esquema do Portal de Dados Abertos.
 
-    O formato da divulgação muda entre ciclos; o parser procura, de forma tolerante, listas de
-    candidatos (dicts com 'n' e 'vap') e os totais do município (chaves 'e'/'c'/'a'/'vb'/'tvn'/'vv').
-    Valide com `python -m missao conferir` quando rodar com dados reais.
+    Formato 2026 (arquivo "u", unificado, um por município × cargo):
+      carg[] → fed[] (federações: n, nm, npar[]) e agr[] (agremiações: n, vag = vagas na UF)
+             → par[] (n, sg, nfed, tvtn = nominais, tvtl = legenda) → cand[] (sqcand, n, nmu, dvt, vap)
+      e{te, c, a} = eleitorado/comparecimento/abstenção; v{vv, vb, tvn} = válidos/brancos/nulos
+    Eleitos: br-c<cargo>-e<eleição>-e.json (lista por UF). Onde a UF ainda não tem a lista, os eleitos dos
+    cargos proporcionais são estimados pelas vagas da agremiação (os mais votados dela).
+    Arquivos de outros ciclos (sem "carg") passam pelo leitor tolerante `_ler_legado`.
     """
-    linhas_cand, linhas_det, linhas_leg = [], [], []
-    nomes_mun = {}
+    nomes_mun: dict[tuple[str, int], str] = {}
     for cfg_mun in base.glob("*/mun-e*-cm.json"):
-        for uf in json.loads(cfg_mun.read_bytes()).get("abr", []):
+        for uf in ler_json(cfg_mun).get("abr", []):
             for mu in uf.get("mu", []):
                 nomes_mun[(uf["cd"].upper(), int(mu["cd"]))] = mu.get("nm", "")
-    for arq in base.glob("*/*/*.json"):
+
+    cand_mun: list[tuple] = []         # só Presidente/Governador/Senador e candidatos do partido
+    cand_uf: dict[tuple, list] = {}     # (cargo, uf, sq) → [nr, nome, nr_partido, sg, fed, agr, votos, brutos]
+    partidos: list[tuple] = []
+    detalhe: list[dict] = []
+    vagas: dict[tuple, int] = {}        # (cargo, uf, agremiação) → vagas
+    legado: list[Path] = []
+    arquivos = [a for a in base.glob("*/*/*") if PADRAO_ARQ.search(a.name)]
+    for i, arq in enumerate(arquivos):
+        if i and i % 4000 == 0:
+            print(f"[processar] API: {i:,}/{len(arquivos):,} arquivos lidos")
         m = PADRAO_ARQ.search(arq.name)
+        uf, mun = m["uf"].upper(), int(m["mun"])
+        dados = ler_json(arq)
+        if "carg" not in dados:
+            legado.append(arq)
+            continue
+        nm = nomes_mun.get((uf, mun), "")
+        for carg in dados["carg"]:
+            cargo = int(carg["cd"])
+            feds = {f.get("n"): _sg_federacao(f) for f in carg.get("fed", [])}
+            for agr in carg.get("agr", []):
+                id_agr = str(agr.get("n", ""))
+                vagas.setdefault((cargo, uf, id_agr), _int(agr.get("vag", 0)))
+                for par in agr.get("par", []):
+                    nrp, sg = _int(par.get("n")), par.get("sg", "")
+                    fed = feds.get(par.get("nfed", ""), "")
+                    nominais = 0
+                    for c in par.get("cand", []):
+                        vap = _int(c.get("vap"))
+                        valido = str(c.get("dvt", "Válido")).startswith("Válido")
+                        votos = vap if valido else 0
+                        nominais += votos
+                        chave = (cargo, uf, str(c.get("sqcand", "")))
+                        acc = cand_uf.get(chave)
+                        if acc is None:
+                            acc = cand_uf[chave] = [_int(c.get("n")), c.get("nmu") or c.get("nm", ""), nrp, sg, fed,
+                                                    id_agr, 0, 0]
+                        acc[6] += votos
+                        acc[7] += vap
+                        if vap and (cargo in (1, 3, 5) or nrp == cfg.partido_numero):
+                            cand_mun.append((cargo, uf, mun, nm, chave[2], acc[0], acc[1], nrp, sg, fed, votos, vap))
+                    legenda = _int(par.get("tvtl", 0))
+                    if nominais or legenda:
+                        partidos.append((cargo, uf, mun, nm, nrp, sg, fed, nominais, legenda, legenda,
+                                         nominais + legenda))
+            e, v = dados.get("e", {}), dados.get("v", {})
+            detalhe.append({"cd_cargo": cargo, "sg_uf": uf, "cd_municipio": mun, "nm_municipio": nm,
+                            "aptos": _int(e.get("te")), "comparecimento": _int(e.get("c")),
+                            "abstencoes": _int(e.get("a")), "brancos": _int(v.get("vb")),
+                            "nulos": _int(v.get("tvn")), "validos": _int(v.get("vv"))})
+
+    if legado and not cand_uf:
+        return _ler_legado(cfg, base, legado, nomes_mun)
+
+    cols_c = ["cd_cargo", "sg_uf", "cd_municipio", "nm_municipio", "sq_candidato", "nr_candidato", "nm_urna",
+              "nr_partido", "sg_partido", "sg_federacao", "votos", "votos_brutos"]
+    cm = pd.DataFrame(cand_mun, columns=cols_c)
+    cu = pd.DataFrame([(k[0], k[1], k[2], *v) for k, v in cand_uf.items()],
+                      columns=["cd_cargo", "sg_uf", "sq_candidato", "nr_candidato", "nm_urna", "nr_partido",
+                               "sg_partido", "sg_federacao", "agremiacao", "votos", "votos_brutos"])
+    cu["situacao"] = _situacoes(base, cu, vagas)
+    cm = cm.merge(cu[["cd_cargo", "sg_uf", "sq_candidato", "situacao"]], how="left",
+                  on=["cd_cargo", "sg_uf", "sq_candidato"])
+    pm = pd.DataFrame(partidos, columns=["cd_cargo", "sg_uf", "cd_municipio", "nm_municipio", "nr_partido",
+                                         "sg_partido", "sg_federacao", "votos_nominais", "votos_legenda",
+                                         "votos_legenda_total", "votos_total"])
+    for df in (cm, cu):
+        df["sg_federacao"] = df["sg_federacao"].fillna("")
+        df["situacao"] = df["situacao"].fillna("")
+    return {"cand_mun": cm, "cand_uf": cu.drop(columns="agremiacao"), "partido_mun": pm,
+            "detalhe_mun": pd.DataFrame(detalhe)}
+
+
+def _situacoes(base: Path, cu: pd.DataFrame, vagas: dict) -> pd.Series:
+    """Situação de cada candidato: arquivos de eleitos do TSE + estimativa pelas vagas onde ainda faltarem."""
+    sit = pd.Series("", index=cu.index, dtype=object)
+    chave = list(zip(cu["cd_cargo"], cu["sg_uf"], cu["sq_candidato"]))
+    pos = {k: i for i, k in enumerate(chave)}
+    com_lista: set[tuple[int, str]] = set()
+    for arq in base.glob("*/br/*"):
+        m = PADRAO_ELEITOS.search(arq.name)
         if not m:
             continue
+        cargo = int(m["cargo"])
+        for abr in ler_json(arq).get("abr", []):
+            uf, cands = abr.get("cdabr", "").upper(), abr.get("cand", [])
+            if not cands:
+                continue
+            com_lista.add((cargo, uf))
+            rotulo = "2º TURNO" if cargo == 3 and len(cands) == 2 else "ELEITO"
+            for c in cands:
+                i = pos.get((cargo, uf, str(c.get("sqcand", ""))))
+                if i is not None:
+                    sit.iat[i] = rotulo
+    # Presidente: 2º turno entre os dois primeiros se ninguém passou de 50% dos válidos
+    pres = cu[cu["cd_cargo"] == 1].groupby("sq_candidato")["votos"].sum().sort_values(ascending=False)
+    if len(pres):
+        rot = "ELEITO" if pres.iloc[0] > pres.sum() / 2 else "2º TURNO"
+        topo = set(pres.index[:1 if rot == "ELEITO" else 2])
+        sit[(cu["cd_cargo"] == 1) & cu["sq_candidato"].isin(topo)] = rot
+    # Proporcionais sem lista oficial na UF: os mais votados de cada agremiação, até o número de vagas dela
+    for (cargo, uf), g in cu[cu["cd_cargo"].isin([6, 7, 8])].groupby(["cd_cargo", "sg_uf"]):
+        if (cargo, uf) in com_lista:
+            continue
+        for agr, ga in g.groupby("agremiacao"):
+            n = vagas.get((cargo, uf, agr), 0)
+            if n:
+                sit[ga.sort_values("votos", ascending=False).index[:n]] = "ELEITO (estimado pelas vagas)"
+    # Sem vaga: suplente se a agremiação conquistou cadeira; senão, não eleito
+    prop = cu["cd_cargo"].isin([6, 7, 8])
+    tem_vaga = [vagas.get((c, u, a), 0) > 0 for c, u, a in zip(cu["cd_cargo"], cu["sg_uf"], cu["agremiacao"])]
+    sit[(sit == "") & prop & pd.Series(tem_vaga, index=cu.index)] = "SUPLENTE"
+    sit[sit == ""] = "NÃO ELEITO"
+    return sit
+
+
+def _ler_legado(cfg: Config, base: Path, arquivos: list[Path], nomes_mun: dict) -> dict[str, pd.DataFrame]:
+    """Leitor tolerante para arquivos de ciclos anteriores (dicts com 'n' e 'vap' em qualquer nível)."""
+    linhas_cand, linhas_det, linhas_leg = [], [], []
+    for arq in arquivos:
+        m = PADRAO_ARQ.search(arq.name)
         uf, mun, cargo = m["uf"].upper(), int(m["mun"]), int(m["cargo"])
-        dados = json.loads(arq.read_bytes())
+        dados = ler_json(arq)
         nm = nomes_mun.get((uf, mun), "")
         vistos = set()
         for d, pais in _iter_dicts(dados):
@@ -482,7 +616,7 @@ def processar(cfg: Config) -> dict[str, pd.DataFrame]:
             tabelas["partido_mun"] = processar_votacao_partido(cfg, arq(f"votacao_partido_munzona_{cfg.ano}"))
         if com_dados(f"detalhe_votacao_munzona_{cfg.ano}"):
             tabelas.update(processar_detalhe(cfg, arq(f"detalhe_votacao_munzona_{cfg.ano}")))
-    elif api.exists() and any(PADRAO_ARQ.search(a.name) for a in api.glob("*/*/*.json")):
+    elif api.exists() and any(PADRAO_ARQ.search(a.name) for a in api.glob("*/*/*")):
         if arq(vot).exists():
             print(f"[processar] {vot}.zip foi publicado sem dados (só cabeçalhos): o TSE ainda não liberou os "
                   "consolidados. Usando a API de divulgação.")
