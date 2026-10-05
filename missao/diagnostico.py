@@ -69,11 +69,11 @@ def diagnosticar(cfg: Config) -> None:
         print(f"\n[diagnóstico] API de divulgação: {len(arquivos)} arquivos; por (eleição, cargo): {dict(por)}")
         desc = api / "eleicoes_descobertas.json"
         if desc.exists():
-            print(f"   eleições descobertas: {desc.read_text(encoding='utf-8')[:1500]}")
+            print(f"   eleições descobertas: {desc.read_text(encoding='utf-8', errors='replace')[:1500]}")
         for cargo in ("0001", "0006"):
             ex = next((a for a in arquivos if f"-c{cargo}-" in a.name), None)
             if ex:
-                print(f"   exemplo cargo {cargo} ({ex.name}): {json.dumps(json.loads(ex.read_text()), ensure_ascii=False)[:1500]}")
+                print(f"   exemplo cargo {cargo} ({ex.name}): {json.dumps(json.loads(ex.read_bytes()), ensure_ascii=False)[:1500]}")
 
     proc = cfg.dir_processados
     if proc.exists():

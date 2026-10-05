@@ -374,7 +374,7 @@ def processar_api(cfg: Config, base: Path) -> dict[str, pd.DataFrame]:
     linhas_cand, linhas_det, linhas_leg = [], [], []
     nomes_mun = {}
     for cfg_mun in base.glob("*/mun-e*-cm.json"):
-        for uf in json.loads(cfg_mun.read_text()).get("abr", []):
+        for uf in json.loads(cfg_mun.read_bytes()).get("abr", []):
             for mu in uf.get("mu", []):
                 nomes_mun[(uf["cd"].upper(), int(mu["cd"]))] = mu.get("nm", "")
     for arq in base.glob("*/*/*-r.json"):
@@ -382,7 +382,7 @@ def processar_api(cfg: Config, base: Path) -> dict[str, pd.DataFrame]:
         if not m:
             continue
         uf, mun, cargo = m["uf"].upper(), int(m["mun"]), int(m["cargo"])
-        dados = json.loads(arq.read_text())
+        dados = json.loads(arq.read_bytes())
         nm = nomes_mun.get((uf, mun), "")
         vistos = set()
         for d, pais in _iter_dicts(dados):

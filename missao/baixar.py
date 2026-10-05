@@ -211,10 +211,14 @@ def baixar_api(cfg: Config, eleicoes: list[str] | None = None, max_workers: int 
         if not eleicoes:
             achadas = descobrir_eleicoes(cfg, cliente)
             (base / "eleicoes_descobertas.json").parent.mkdir(parents=True, exist_ok=True)
-            (base / "eleicoes_descobertas.json").write_text(json.dumps(achadas, ensure_ascii=False, indent=1))
+            (base / "eleicoes_descobertas.json").write_text(json.dumps(achadas, ensure_ascii=False, indent=1),
+                                                            encoding="utf-8")
             eleicoes = sorted({str(int(e["cd"])) for e in achadas
                                if str(e.get("t", e.get("tp", "1"))) in ("1", str(cfg.turno))})
             print(f"[api] eleições descobertas: {eleicoes}")
+            if not eleicoes:
+                print("[api] nenhuma eleição encontrada no ele-c.json — rode `python -m missao sondar` e envie a pasta "
+                      "amostras_api/ (veja o README)")
         tarefas = []
         for ele in eleicoes:
             e6 = f"{int(ele):06d}"
@@ -226,7 +230,7 @@ def baixar_api(cfg: Config, eleicoes: list[str] | None = None, max_workers: int 
                 continue
             destino_cfg = base / ele / f"mun-e{e6}-cm.json"
             destino_cfg.parent.mkdir(parents=True, exist_ok=True)
-            destino_cfg.write_text(json.dumps(mun_cfg, ensure_ascii=False))
+            destino_cfg.write_text(json.dumps(mun_cfg, ensure_ascii=False), encoding="utf-8")
             cargos = _cargos_da_eleicao(cfg, cliente, ciclo, ele, e6, mun_cfg)
             print(f"[api] eleição {ele}: cargos {cargos}")
             for uf in mun_cfg.get("abr", []):
@@ -286,3 +290,80 @@ def baixar_api(cfg: Config, eleicoes: list[str] | None = None, max_workers: int 
                     print(f"[api] {i}/{len(faltando)} {contagem}")
         print(f"[api] concluído: {contagem}. Se houver erros, rode o mesmo comando de novo: só o que falta é baixado.")
     return base
+
+
+# --------------------------------------------------------------------------- sonda da API (diagnóstico)
+
+def _padroes_url(base: str, ele: str, uf: str, mun: str, cargo: int) -> dict[str, str]:
+    """Endereços candidatos para resultado por município/UF (o layout muda entre ciclos)."""
+    e6, c4 = f"{int(ele):06d}", f"{cargo:04d}"
+    return {
+        f"simpl_mun_c{c4}": f"{base}/{ele}/dados-simplificados/{uf}/{uf}{mun}-c{c4}-e{e6}-r.json",
+        f"dados_mun_v_c{c4}": f"{base}/{ele}/dados/{uf}/{uf}{mun}-c{c4}-e{e6}-v.json",
+        f"simpl_uf_c{c4}": f"{base}/{ele}/dados-simplificados/{uf}/{uf}-c{c4}-e{e6}-r.json",
+        f"dados_uf_f_c{c4}": f"{base}/{ele}/dados/{uf}/{uf}-c{c4}-e{e6}-f.json",
+        f"dados_uf_v_c{c4}": f"{base}/{ele}/dados/{uf}/{uf}-c{c4}-e{e6}-v.json",
+    }
+
+
+def sondar_api(cfg: Config, destino: Path, eleicoes_extra: list[str] | None = None) -> None:
+    """Testa os endereços da API de divulgação num município de amostra e grava as respostas reais em `destino`.
+
+    Serve para ajustar o leitor quando o formato do ciclo muda. Poucas dezenas de requisições, em sequência.
+    """
+    destino.mkdir(parents=True, exist_ok=True)
+    ciclo = f"ele{cfg.ano}"
+    base = f"{cfg.url_divulgacao}/{ciclo}"
+    log: list[str] = []
+
+    def reg(msg: str) -> None:
+        print(msg)
+        log.append(msg)
+
+    def pegar(nome: str, url: str) -> bytes | None:
+        time.sleep(0.15)
+        try:
+            r = cliente.get(url)
+        except httpx.HTTPError as erro:
+            reg(f"ERRO  {nome}: {url} — {erro}")
+            return None
+        reg(f"{r.status_code}   {nome}: {url} ({len(r.content):,} bytes)")
+        if r.status_code == 200:
+            (destino / f"{nome}.json").write_bytes(r.content)
+            return r.content
+        return None
+
+    with _cliente(timeout=60) as cliente:
+        bruto = pegar("ele-c", f"{cfg.url_divulgacao}/comum/config/ele-c.json")
+        eleicoes: list[str] = []
+        if bruto:
+            achadas = descobrir_eleicoes(cfg, cliente)
+            reg(f"eleições encontradas no ele-c.json: {[(e.get('cd'), e.get('nm'), e.get('t')) for e in achadas]}")
+            eleicoes = sorted({str(int(e["cd"])) for e in achadas if str(e.get("cd", "")).isdigit()})
+        eleicoes = list(dict.fromkeys([*(eleicoes_extra or []), *eleicoes]))
+        if not eleicoes:
+            reg("nenhum código de eleição — abra o site de resultados do TSE, escolha Presidente e veja no endereço "
+                "o trecho e=eNNN; rode de novo com `python -m missao sondar --eleicoes NNN`")
+        for ele in eleicoes[:6]:
+            e6 = f"{int(ele):06d}"
+            cfg_b = pegar(f"e{ele}_mun-cm", f"{base}/{ele}/config/mun-e{e6}-cm.json")
+            uf, mun = "sp", "71072"
+            if cfg_b:
+                try:
+                    abr = {u["cd"].lower(): u for u in json.loads(cfg_b).get("abr", [])}
+                    u = abr.get("sp") or next(iter(abr.values()))
+                    uf = u["cd"].lower()
+                    mun = next((m["cd"] for m in u.get("mu", []) if "SÃO PAULO" in m.get("nm", "").upper()),
+                               u["mu"][0]["cd"])
+                except Exception as erro:  # noqa: BLE001
+                    reg(f"      não consegui ler a config de municípios: {erro}")
+            reg(f"      amostra: uf={uf} município={mun}")
+            pegar(f"e{ele}_br_c0001_r", f"{base}/{ele}/dados-simplificados/br/br-c0001-e{e6}-r.json")
+            for cargo in CARGOS_API:
+                for nome, url in _padroes_url(base, ele, uf, mun, cargo).items():
+                    pegar(f"e{ele}_{nome}", url)
+    (destino / "LEIAME.txt").write_text(
+        "Respostas reais da API de divulgação do TSE, gravadas por `python -m missao sondar`.\n"
+        "Status HTTP de cada endereço testado:\n\n" + "\n".join(log) + "\n", encoding="utf-8")
+    print(f"\n[sondar] {sum(1 for _ in destino.glob('*.json'))} respostas salvas em {destino}. Envie a pasta pelo git:")
+    print(f"  git add {destino.name} && git commit -m \"Amostras da API do TSE\" && git push")

@@ -42,7 +42,7 @@ Fonte principal: [Portal de Dados Abertos do TSE](https://dadosabertos.tse.jus.b
 | `perfil_eleitorado_2026` | sexo, idade e escolaridade do eleitorado por município |
 | `votacao_candidato_munzona_2022` | base de comparação (voto esperado e origem dos votos) |
 
-Logo após a eleição o TSE publica os consolidados de 2026 **só com os cabeçalhos** (zips de poucos KB) e os resultados ficam apenas na API de divulgação (`resultados.tse.jus.br`). O pipeline detecta zips sem dados e usa a API; a sigla do partido, que a API não traz, vem do `consulta_cand`. Nessa fonte não há votação por zona eleitoral. `python -m missao baixar` tenta o portal e, se o ano ainda não estiver publicado, cai para a API (`--fonte api` força). O parser da API é tolerante a mudanças de formato, mas confira o resultado com `make conferir`. Se algo não bater, `python -m missao diagnosticar` mostra o layout de cada zip (CSVs, colunas, linhas por cargo) e o que foi extraído.
+Logo após a eleição o TSE publica os consolidados de 2026 **só com os cabeçalhos** (zips de poucos KB) e os resultados ficam apenas na API de divulgação (`resultados.tse.jus.br`). O pipeline detecta zips sem dados e usa a API; a sigla do partido, que a API não traz, vem do `consulta_cand`. Nessa fonte não há votação por zona eleitoral. `python -m missao baixar` tenta o portal e, se o ano ainda não estiver publicado, cai para a API (`--fonte api` força). O parser da API é tolerante a mudanças de formato, mas confira o resultado com `make conferir`. Se algo não bater, `python -m missao diagnosticar` mostra o layout de cada zip (CSVs, colunas, linhas por cargo) e o que foi extraído. Para o formato da API, `python -m missao sondar [--eleicoes NNN …]` grava respostas reais de um município de amostra em `amostras_api/`.
 
 **Ambiente na nuvem do Claude Code:** os domínios `cdn.tse.jus.br`, `resultados.tse.jus.br` e `dadosabertos.tse.jus.br` precisam estar liberados em *Network access* do ambiente. Localmente não há restrição.
 
@@ -67,7 +67,7 @@ missao/
   metricas.py    todas as análises
   relatorio.py   HTML, XLSX, CSVs e RESUMO.md
   diagnostico.py inspeção dos zips do TSE e das tabelas processadas
-  __main__.py    CLI: python -m missao {baixar,processar,conferir,analisar,diagnosticar,tudo}
+  __main__.py    CLI: python -m missao {baixar,processar,conferir,analisar,diagnosticar,sondar,tudo}
 scripts/gerar_sintetico.py   dados sintéticos no formato exato do TSE (testes e demonstração)
 tests/                       testes ponta a ponta
 config.yaml                  partido, número do presidenciável, limiares
