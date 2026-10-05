@@ -56,13 +56,27 @@ def _membros_csv(zf: zipfile.ZipFile) -> tuple[list[str], str | None]:
     return csvs, br
 
 
+# Cabeçalho completo do último CSV lido de cada zip (para mensagens de diagnóstico)
+CABECALHOS: dict[str, list[str]] = {}
+
+
+def _norm_col(c: str) -> str:
+    """Nome de coluna sem BOM, aspas e espaços, em maiúsculas (o TSE varia isso entre anos)."""
+    return str(c).replace("\ufeff", "").replace("ï»¿", "").strip().strip('"').strip().upper()
+
+
 def ler_zip_tse(caminho: Path, colunas: set[str], filtro=None, chunksize: int = 400_000,
-                apenas_br: bool = False) -> pd.DataFrame:
-    """Lê os CSVs (latin-1, ';') de um zip do TSE mantendo só `colunas` e aplicando `filtro(df)->df`.
+                apenas_br: bool = False, prefixos: tuple[str, ...] = ()) -> pd.DataFrame:
+    """Lê os CSVs (latin-1, ';') de um zip do TSE mantendo só `colunas` (e as que começam com `prefixos`)
+    e aplicando `filtro(df)->df`.
 
     Quando há arquivo *_BR.csv (abrangência nacional, ex.: Presidente) junto com os arquivos por UF,
     as linhas de Presidente vêm só do _BR para não haver dupla contagem.
     """
+    def _quero(c) -> bool:
+        n = _norm_col(c)
+        return n in colunas or (bool(prefixos) and n.startswith(prefixos))
+
     partes = []
     with zipfile.ZipFile(caminho) as zf:
         membros, membro_br = _membros_csv(zf)
@@ -70,10 +84,13 @@ def ler_zip_tse(caminho: Path, colunas: set[str], filtro=None, chunksize: int = 
             membros = [membro_br]
         for membro in membros:
             with zf.open(membro) as f:
+                CABECALHOS[caminho.name] = [_norm_col(c) for c in f.readline().decode("latin-1").split(";")]
+            with zf.open(membro) as f:
                 leitor = pd.read_csv(f, sep=";", encoding="latin-1", dtype=str, quotechar='"',
-                                     usecols=lambda c: c in colunas, chunksize=chunksize,
+                                     usecols=_quero, chunksize=chunksize,
                                      na_values=NULOS, keep_default_na=False)
                 for bloco in leitor:
+                    bloco.columns = [_norm_col(c) for c in bloco.columns]
                     if filtro is not None:
                         bloco = filtro(bloco)
                     if len(bloco):
@@ -256,16 +273,29 @@ def processar_consulta_cand(cfg: Config, caminho: Path) -> pd.DataFrame:
 
 # --------------------------------------------------------------------------- perfil do eleitorado
 
-COLS_PERFIL = {"SG_UF", "CD_MUNICIPIO", "DS_GENERO", "DS_FAIXA_ETARIA", "DS_GRAU_ESCOLARIDADE",
-               "QT_ELEITORES_PERFIL", "ANO_ELEICAO", "DT_GERACAO"}
+COLS_PERFIL = {"SG_UF", "CD_MUNICIPIO", "DS_GENERO", "DS_SEXO", "DS_FAIXA_ETARIA", "DS_GRAU_ESCOLARIDADE",
+               "DS_GRAU_INSTRUCAO", "ANO_ELEICAO", "DT_GERACAO"}
+# Nome da contagem de eleitores, em ordem de preferência (varia entre versões do arquivo)
+QT_PERFIL = ("QT_ELEITORES_PERFIL", "QT_ELEITORES", "QT_ELEITOR", "QT_ELEITORES_TOTAL")
+
+
+def _coluna(df: pd.DataFrame, opcoes, caminho: Path, descricao: str) -> str:
+    achada = next((c for c in opcoes if c in df.columns), None)
+    if achada is None:
+        raise ValueError(f"{descricao} não encontrada em {caminho.name} (procurei {list(opcoes)}). "
+                         f"Colunas do arquivo: {CABECALHOS.get(caminho.name)}")
+    return achada
 
 
 def processar_perfil(cfg: Config, caminho: Path) -> pd.DataFrame:
-    df = ler_zip_tse(caminho, COLS_PERFIL)
-    qt = _num(df["QT_ELEITORES_PERFIL"])
-    idade = pd.to_numeric(df["DS_FAIXA_ETARIA"].str.extract(r"(\d+)")[0], errors="coerce")
-    esc = df["DS_GRAU_ESCOLARIDADE"].map(sem_acento).fillna("")
-    gen = df["DS_GENERO"].map(sem_acento).fillna("")
+    df = ler_zip_tse(caminho, COLS_PERFIL, prefixos=("QT_ELEITOR",))
+    extras = [c for c in df.columns if c.startswith("QT_ELEITOR") and c not in QT_PERFIL
+              and not any(x in c for x in ("BIOMETRIA", "DEFICIENCIA", "NM_SOCIAL", "INC_"))]
+    qt = _num(df[_coluna(df, QT_PERFIL + tuple(extras), caminho, "Contagem de eleitores")])
+    idade = pd.to_numeric(df[_coluna(df, ("DS_FAIXA_ETARIA",), caminho, "Faixa etária")]
+                          .str.extract(r"(\d+)")[0], errors="coerce")
+    esc = df[_coluna(df, ("DS_GRAU_ESCOLARIDADE", "DS_GRAU_INSTRUCAO"), caminho, "Escolaridade")].map(sem_acento).fillna("")
+    gen = df[_coluna(df, ("DS_GENERO", "DS_SEXO"), caminho, "Gênero")].map(sem_acento).fillna("")
     base = pd.DataFrame({
         "sg_uf": df["SG_UF"], "cd_municipio": _num(df["CD_MUNICIPIO"]).astype("int32"), "qt": qt,
         "q_fem": qt * (gen == "FEMININO"),
@@ -426,15 +456,18 @@ def processar(cfg: Config) -> dict[str, pd.DataFrame]:
                                   .assign(votos_legenda=0, votos_legenda_total=0))
         tabelas["partido_mun"]["votos_total"] = tabelas["partido_mun"]["votos_nominais"]
 
-    if arq(f"consulta_cand_{cfg.ano}").exists():
-        tabelas["candidatos"] = processar_consulta_cand(cfg, arq(f"consulta_cand_{cfg.ano}"))
-    for nome in (f"perfil_eleitorado_{cfg.ano}", "perfil_eleitorado_ATUAL"):
-        if arq(nome).exists():
-            tabelas["perfil_mun"] = processar_perfil(cfg, arq(nome))
-            break
-    if arq(f"votacao_candidato_munzona_{cfg.ano_comparacao}").exists():
-        tabelas["comparacao_pres_mun"] = processar_comparacao(
-            cfg, arq(f"votacao_candidato_munzona_{cfg.ano_comparacao}"))
+    # Fontes complementares: se falharem, a análise segue sem elas (com aviso)
+    opcionais = [("candidatos", f"consulta_cand_{cfg.ano}", processar_consulta_cand),
+                 ("perfil_mun", f"perfil_eleitorado_{cfg.ano}", processar_perfil),
+                 ("perfil_mun", "perfil_eleitorado_ATUAL", processar_perfil),
+                 ("comparacao_pres_mun", f"votacao_candidato_munzona_{cfg.ano_comparacao}", processar_comparacao)]
+    for tabela, nome, funcao in opcionais:
+        if tabela in tabelas or not arq(nome).exists():
+            continue
+        try:
+            tabelas[tabela] = funcao(cfg, arq(nome))
+        except Exception as erro:  # noqa: BLE001
+            print(f"[processar] AVISO: {nome}.zip ignorado — {type(erro).__name__}: {erro}")
 
     tabelas["municipios"] = montar_municipios(tabelas["detalhe_mun"])
     salvar(tabelas, cfg.dir_processados)

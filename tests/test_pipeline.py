@@ -127,3 +127,43 @@ def test_suavizacao_encolhe_pequenos():
     # 1 voto em 10 (10%) e 3 em 10 (30%) devem ser puxados fortemente para a média da UF (~2,5%)
     assert s.loc[0, "pct_suav"] < 0.06 and s.loc[5, "pct_suav"] < 0.08
     assert s.loc[2, "pct_suav"] == pytest.approx(0.02, abs=0.002)
+
+
+# --------------------------------------------------------------------------- variações de formato do TSE
+
+def _zip_csv(caminho: Path, nome: str, texto: str) -> Path:
+    import zipfile
+    with zipfile.ZipFile(caminho, "w") as zf:
+        zf.writestr(nome, texto.encode("latin-1"))
+    return caminho
+
+
+def test_perfil_com_bom_e_coluna_alternativa(tmp_path):
+    from missao.carregar import processar_perfil
+    cab = '"DT_GERACAO";"SG_UF";"CD_MUNICIPIO";"DS_GENERO";"DS_FAIXA_ETARIA";"DS_GRAU_ESCOLARIDADE";"QT_ELEITORES_BIOMETRIA";"QT_ELEITORES"\n'
+    linhas = ('"05/10/2026";"SP";"71072";"FEMININO";"21 a 24 anos";"SUPERIOR COMPLETO";"5";"30"\n'
+              '"05/10/2026";"SP";"71072";"MASCULINO";"65 a 69 anos";"ENSINO MÉDIO COMPLETO";"5";"70"\n')
+    arq = tmp_path / "perfil.zip"
+    with __import__("zipfile").ZipFile(arq, "w") as zf:
+        # BOM UTF-8 + corpo latin-1: lido como latin-1, o BOM vira "ï»¿" no nome da 1ª coluna
+        zf.writestr("perfil_eleitorado_2026.csv", b"\xef\xbb\xbf" + (cab + linhas).encode("latin-1"))
+    p = processar_perfil(carregar_config(), arq).iloc[0]
+    from missao.carregar import CABECALHOS
+    assert CABECALHOS["perfil.zip"][0] == "DT_GERACAO"
+    assert p.eleitorado_perfil == 100
+    assert p.pct_fem == pytest.approx(0.3) and p.pct_superior == pytest.approx(0.3) and p.pct_60m == pytest.approx(0.7)
+
+
+def test_perfil_sem_contagem_vira_aviso(ambiente, tmp_path, capsys):
+    import shutil
+    cfg, _, _ = ambiente
+    cdn = tmp_path / "brutos" / "cdn"
+    shutil.copytree(cfg.dir_brutos / "cdn", cdn)
+    (cdn / "perfil_eleitorado_2026.zip").unlink()
+    _zip_csv(cdn / "perfil_eleitorado_2026.zip", "perfil_eleitorado_2026.csv",
+             '"SG_UF";"CD_MUNICIPIO";"DS_GENERO"\n"SP";"71072";"FEMININO"\n')
+    cfg2 = carregar_config(dir_dados=tmp_path, dir_saida=tmp_path / "saida")
+    t = processar(cfg2)
+    assert "perfil_mun" not in t and "cand_mun" in t
+    saida = capsys.readouterr().out
+    assert "perfil_eleitorado_2026.zip ignorado" in saida and "Colunas do arquivo" in saida
