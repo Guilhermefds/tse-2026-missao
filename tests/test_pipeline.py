@@ -356,3 +356,46 @@ def test_relatorio_a_partir_da_planilha(ambiente, tmp_path):
     assert esp["razao_real_esperado"].std() > 0          # modelo sem efeito de UF diferencia os estados
     q = pd.read_excel(caminhos["xlsx"], sheet_name="quociente")
     assert (q["faltaram_proximo_qe"] > 0).all()
+
+
+def test_pagina_completa_para_hospedagem(ambiente, tmp_path):
+    import json
+    cfg, _, r = ambiente
+    cfg.dir_saida = tmp_path
+    caminhos = gerar_relatorio(cfg, r, sintetico=True)
+    site = caminhos["site"].read_text(encoding="utf-8")
+    assert site.startswith("<!doctype html>") and site.rstrip().endswith("</html>")
+    cabeca, corpo = site.split("</head>")
+    assert "<title>" in cabeca and "<style>" in cabeca and "<title>" not in corpo
+    assert 'href="analise_completa.xlsx"' in corpo
+    vercel = json.loads((RAIZ / "vercel.json").read_text(encoding="utf-8"))
+    assert vercel["outputDirectory"] == "saida" and vercel["framework"] is None
+
+
+def test_clausula_de_barreira(ambiente):
+    cfg, t, r = ambiente
+    res = dict(zip(r["clausula_resumo"].indicador, r["clausula_resumo"].valor))
+    base = r["base_municipal"]
+    b = base[~base.exterior]
+    assert res["Votos do partido para Dep. Federal (nominal + legenda)"] == b.df_total.sum()
+    pct = res["% dos válidos no país"]
+    assert pct == pytest.approx(100 * b.df_total.sum() / b.validos_df.sum())
+    por_uf = r["clausula_por_uf"]
+    assert (por_uf.faltam == (por_uf.meta_votos - por_uf.df_total).clip(lower=0)).all()
+    assert por_uf.faltam_acumulado.iloc[-1] == por_uf.faltam.sum()
+    partidos = r["clausula_partidos"]                       # com dados completos: todos os partidos
+    assert partidos.destaque.sum() == 1 and set(partidos.columns) >= {"criterio_votos", "criterio_eleitos", "atingiu"}
+    fe = partidos.set_index("agremiacao").loc["FE BRASIL"]  # federação soma PT e PC do B
+    assert fe.partidos == "PC do B / PT"
+    assert any(r["fatos"].tema == "Cláusula de barreira")
+
+
+def test_tabela_filtros_e_restaurar():
+    from missao.relatorio import tabela
+    df = pd.DataFrame({"nm_municipio": [f"CIDADE {i}" for i in range(20)], "sg_uf": ["SP", "RS"] * 10,
+                       "renan_votos": range(20)})
+    h = tabela(df, id_="x", visiveis=12)
+    assert 'class="filtro-uf"' in h and '<option value="RS">' in h            # UF separada
+    assert 'class="busca"' in h and 'data-col="0"' in h                       # busca só no nome (1ª coluna)
+    assert 'class="restaurar"' in h and 'autocomplete="off"' in h
+    assert h.count('data-i="') == 20

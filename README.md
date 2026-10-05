@@ -19,17 +19,23 @@ make exemplo       # relatório de demonstração com dados SINTÉTICOS em saida
 | Maiores cidades em percentual | §03, abas `top_pct*`, `podio`, `por_porte` | Rankings com piso de eleitores (padrão 5 mil), top 10 por porte, top 5 por UF, municípios em 1º/2º, piores entre as grandes |
 | Onde acertamos, onde erramos | §05 e §08, abas `acertos_*`, `erros_*`, `esperado_*`, `quociente` | Modelo GLM binomial com efeito fixo de UF, porte, capital, abstenção, votação de 2022 e perfil do eleitorado; resíduo em votos = acerto/erro. Quociente eleitoral: quanto faltou para eleger, e que fração do voto do presidenciável a chapa precisaria reter |
 | Guarda-chuva do presidente frente aos demais | §06, abas `guarda_chuva_*` | Votos da chapa ÷ votos do presidenciável (DF, DE, legenda), retenção, correlação e elasticidade municipal, quintis; mesma métrica para todos os presidenciáveis (partido e federação) |
+| Cláusula de barreira | Relatório §09, abas `clausula_*` | Regra de 2026 (EC 97/2017): 2,5% dos válidos para a Câmara com 1,5% em 9 UFs, ou 13 deputados em 9 UFs; quanto falta em cada UF, simulação com 100% dos votos do presidenciável e, com os dados completos, situação de todos os partidos e federações (limiares em `config.yaml`) |
 | Cidades onde deputados tiveram mais votos que Renan | §07, abas `df_maior_que_pres`, `de_maior_que_pres`, `candidato_maior_que_pres`, `candidatos_puxadores_locais` | Chapa (nominal + legenda) e candidatos individuais acima do presidenciável, por município, UF e porte |
 
 Extras: desempenho individual de cada candidato (votos, % da UF, reduto, concentração HHI, correlação com o mapa do Renan, % do QE), zonas eleitorais (dentro das capitais), exterior e origem geográfica dos votos em relação a 2022.
 
 ## Saídas (`saida/`)
 
-- `relatorio.html` — relatório autocontido com gráficos e tabelas ordenáveis/filtráveis.
+- `relatorio.html` — relatório autocontido com gráficos e tabelas. Clique no título da coluna ordena do maior para o menor (de novo, inverte); filtros separados por UF e por nome; "Restaurar ordem" volta ao padrão. Nada fica guardado: recarregar a página volta tudo ao padrão.
+- `index.html` — o mesmo relatório como página completa, para hospedagem (Vercel).
 - `analise_completa.xlsx` — todas as tabelas, uma por aba, incluindo `base_municipal` (uma linha por município, ~80 colunas).
 - `tabelas/*.csv` — as mesmas tabelas em CSV (`;`, decimal `,`, UTF-8 com BOM para abrir no Excel).
 - `RESUMO.md` — destaques e principais tabelas em texto.
 - `LEITURA.md` — leitura estratégica escrita sobre os resultados (aparece no topo do relatório quando existe).
+
+## Publicar como site (Vercel)
+
+O site é estático: a pasta `saida/`, com `index.html` (o relatório como página completa, com links para a planilha e os resumos). O `vercel.json` desliga a detecção de Python, que fazia o Vercel procurar um servidor (`app.py`, `main.py`…) que este projeto não tem, e publica `saida/` sem build. Para atualizar o site, rode a análise e faça push de `saida/`. Por padrão, deploys do Vercel são públicos; use *Deployment Protection* no projeto se o relatório não deve ficar aberto.
 
 ## Dados
 

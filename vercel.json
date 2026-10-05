@@ -1,0 +1,24 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "echo 'Site estático: nada a instalar'",
+  "buildCommand": "echo 'Site estático: publicando a pasta saida/'",
+  "outputDirectory": "saida",
+  "headers": [
+    {
+      "source": "/",
+      "headers": [{ "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }]
+    },
+    {
+      "source": "/(.*)\\.html",
+      "headers": [{ "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }]
+    },
+    {
+      "source": "/(.*)\\.md",
+      "headers": [
+        { "key": "Content-Type", "value": "text/plain; charset=utf-8" },
+        { "key": "Cache-Control", "value": "no-cache" }
+      ]
+    }
+  ]
+}

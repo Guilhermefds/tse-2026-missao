@@ -38,12 +38,20 @@ O modelo compara o resultado com o esperado pelo perfil de cada lugar (porte, id
 - **Dep. Estadual no PR:** 82,6% do quociente e nenhuma cadeira; faltaram **19.880 votos** para o quociente. A chapa reteve 53% dos votos do Renan no estado; precisava de cerca de 65%.
 - **Dep. Federal fora de SP:** o mais perto foi o RJ, com 39,5% do quociente. Seria preciso reter 90% dos votos do Renan; a chapa reteve 35%.
 
+### Cláusula de barreira
+
+- **O partido não atingiu a cláusula.** A regra de 2026 exige 2,5% dos votos válidos para a Câmara, com 1,5% em pelo menos 9 UFs, ou 13 deputados federais em 9 UFs. O Missão teve **1,08%** (faltaram **1,62 milhão de votos**, 2,3 vezes a votação obtida), passou de 1,5% só em **SP** e elegeu **1** deputado federal.
+- **O gargalo é o total nacional, não a distribuição.** As 8 UFs mais próximas de 1,5% (RR, DF, AP, AC, RO, TO, MS e SE) pediriam juntas cerca de 67 mil votos. Já os 2,5% ficariam fora de alcance mesmo se a chapa tivesse 100% dos votos do Renan em cada estado: chegaria a 2,35%.
+- **Consequências de 2027 a 2030:** sem Fundo Partidário e sem tempo de propaganda gratuita no rádio e na TV. Os eleitos pelo partido podem se filiar, sem perder o mandato, a um partido que tenha atingido a cláusula (CF, art. 17, §§ 3º e 5º).
+- **Em 2030 a régua sobe** para 3% dos válidos (2% em 9 UFs) ou 15 deputados. Com o tamanho do eleitorado de hoje, isso significa multiplicar por 2,8 a votação da chapa federal de 2026. Federações partidárias contam como um só partido para a cláusula.
+
 ### O que os números sugerem
 
 - **Montar chapas com puxadores de base própria fora de SP.** O caso Evandro Augusto mostra que voto local soma ao do presidenciável em vez de competir com ele.
 - **Priorizar onde a vaga estava perto:** PR (estadual), o 2º federal e o 2º estadual em SP. Juntos, os três quocientes pedem cerca de 106 mil votos. É menos de 4% dos votos que Renan teve.
 - **Trabalhar a transferência para o 14 nas cidades grandes do Sul e do Sudeste**, onde o voto já existe e a conversão ainda fica abaixo de 0,5.
 - **Investigar Goiás e Minas.** Foram as maiores perdas frente ao perfil, possivelmente pelos candidatos locais à Presidência.
+- **Planejar 2030 a partir da cláusula.** A chapa federal precisa crescer bem acima do voto do presidenciável, sobretudo fora de SP, onde hoje converte menos de metade dele. A alternativa de somar votos com outro partido passa por uma federação.
 
 ### Cautelas
 
