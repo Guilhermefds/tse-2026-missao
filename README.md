@@ -6,6 +6,7 @@ Análise dos resultados do TSE para o partido **Missão (14)** nas Eleições Ge
 make instalar      # dependências (Python 3.10+)
 make tudo          # baixa do TSE, processa, confere e gera saida/
 make teste         # testes com dados sintéticos (não precisa de rede)
+python -m missao relatorio   # refaz modelo, destaques e saídas a partir de saida/analise_completa.xlsx
 make exemplo       # relatório de demonstração com dados SINTÉTICOS em saida/exemplo_sintetico/
 ```
 
@@ -28,6 +29,7 @@ Extras: desempenho individual de cada candidato (votos, % da UF, reduto, concent
 - `analise_completa.xlsx` — todas as tabelas, uma por aba, incluindo `base_municipal` (uma linha por município, ~80 colunas).
 - `tabelas/*.csv` — as mesmas tabelas em CSV (`;`, decimal `,`, UTF-8 com BOM para abrir no Excel).
 - `RESUMO.md` — destaques e principais tabelas em texto.
+- `LEITURA.md` — leitura estratégica escrita sobre os resultados (aparece no topo do relatório quando existe).
 
 ## Dados
 

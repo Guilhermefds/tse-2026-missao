@@ -341,3 +341,18 @@ def test_leitor_com_arquivos_reais_da_api_2026(tmp_path):
     assert (cu.query("cd_cargo == 6").situacao == "ELEITO").sum() == 70        # lista oficial de SP
     assert (cu.query("cd_cargo == 7").situacao.str.startswith("ELEITO")).sum() == 94  # estimado pelas vagas
     assert set(pres.sort_values("votos").tail(2).situacao) == {"2º TURNO"}
+
+
+def test_relatorio_a_partir_da_planilha(ambiente, tmp_path):
+    from missao.relatorio import reprocessar_planilha
+    cfg, _, r = ambiente
+    cfg.dir_saida = tmp_path
+    gerar_relatorio(cfg, r, sintetico=True)
+    (tmp_path / "LEITURA.md").write_text("### Título\n\nTexto com **negrito**.\n\n- item um\n- item dois\n", encoding="utf-8")
+    caminhos = reprocessar_planilha(cfg, sintetico=True)
+    html = caminhos["html"].read_text(encoding="utf-8")
+    assert "Leitura do resultado" in html and "<strong>negrito</strong>" in html and "<li>item dois</li>" in html
+    esp = pd.read_excel(caminhos["xlsx"], sheet_name="esperado_por_uf")
+    assert esp["razao_real_esperado"].std() > 0          # modelo sem efeito de UF diferencia os estados
+    q = pd.read_excel(caminhos["xlsx"], sheet_name="quociente")
+    assert (q["faltaram_proximo_qe"] > 0).all()

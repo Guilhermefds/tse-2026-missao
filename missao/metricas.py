@@ -485,7 +485,13 @@ def modelo_esperado(cfg: Config, base: pd.DataFrame) -> dict[str, pd.DataFrame]:
     show["renan_pct"] *= 100
     show["pct_esperado"] *= 100
     grandes = show[show["aptos"] >= 20000]
-    uf = b.groupby("sg_uf")[["renan_votos", "votos_esperados"]].sum()
+    # Comparação entre UFs: o efeito fixo de UF faz o esperado somar exatamente o real em cada estado, então
+    # o desempenho estadual vem de um segundo modelo, só com o perfil (sem UF): o que o estado "deveria" dar.
+    X2 = sm.add_constant(pd.concat([Z, b[["capital"]].astype(float)], axis=1))
+    m2 = sm.GLM(y, X2, family=sm.families.Binomial(), var_weights=b["validos_pres"].to_numpy()).fit(scale="X2")
+    b["votos_esperados_perfil"] = m2.predict(X2) * b["validos_pres"]
+    uf = b.groupby("sg_uf")[["renan_votos", "votos_esperados_perfil"]].sum().rename(
+        columns={"votos_esperados_perfil": "votos_esperados"})
     uf["votos_acima_esperado"] = uf["renan_votos"] - uf["votos_esperados"]
     uf["razao_real_esperado"] = uf["renan_votos"] / uf["votos_esperados"]
     faixa = b.groupby("faixa_eleitorado", observed=True)[["renan_votos", "votos_esperados"]].sum()
@@ -494,6 +500,7 @@ def modelo_esperado(cfg: Config, base: pd.DataFrame) -> dict[str, pd.DataFrame]:
         ("Municípios no modelo", len(b)), ("Pseudo-R² (deviance)", pseudo_r2),
         ("Covariáveis contínuas", ", ".join(continuas)), ("Efeito fixo de UF", "sim"),
         ("Dispersão (X²/gl)", modelo.scale),
+        ("Pseudo-R² do modelo sem UF (comparação entre estados)", 1 - m2.deviance / m2.null_deviance),
     ], columns=["item", "valor"])
     return {
         "modelo_meta": meta,
@@ -544,6 +551,7 @@ def quociente(cfg: Config, t: dict, base: pd.DataFrame) -> pd.DataFrame:
                 "votos_partido": votos, "pct_do_qe": 100 * votos / qe if qe else np.nan,
                 "quocientes_partidarios": votos // qe if qe else 0,
                 "faltaram_para_qe": max(0, qe - votos), "faltaram_para_80pct_qe": max(0, math.ceil(0.8 * qe) - votos),
+                "faltaram_proximo_qe": (votos // qe + 1) * qe - votos if qe else None,
                 "eleitos": int(meus_c["situacao"].fillna("").str.upper().str.startswith("ELEITO").sum()),
                 "candidatos": int(len(meus_c)),
                 "mais_votado": top["nm_urna"] if top is not None else None,
@@ -881,23 +889,51 @@ def fatos(cfg: Config, base: pd.DataFrame, r: dict) -> pd.DataFrame:
                   f"{x.municipios_acima_do_presidente} município(s)."))
     gc = r["guarda_chuva_partidos"]
     if len(gc) and gc["destaque"].any():
+        principais = gc.nlargest(5, "votos_presidente")
         meu = gc[gc["destaque"]].iloc[0]
-        ordem = gc.sort_values("razao_df", ascending=False).reset_index(drop=True)
-        pos = int(ordem.index[ordem["destaque"]][0]) + 1
+        ordem = principais.sort_values("razao_df", ascending=False).reset_index(drop=True)
+        pos = (f"{int(ordem.index[ordem['destaque']][0]) + 1}º entre os 5 mais votados"
+               if ordem["destaque"].any() else "fora dos 5 mais votados")
+        maior_corr = principais.loc[principais["corr_mun_pres_df"].idxmax()]
         f.append(("Guarda-chuva", f"Cada voto em {nome} rendeu {n2(meu.razao_df)} voto(s) para a chapa de Dep. Federal "
-                  f"({pos}º de {len(gc)} presidenciáveis nessa razão); correlação município a município de "
-                  f"{n2(meu.corr_mun_pres_df)}."))
-    q = r["quociente"]
-    qd = q[(q["cargo"] == "Dep. Federal") & (q["eleitos"] == 0)].sort_values("faltaram_para_qe")
-    for _, x in qd[qd["faltaram_para_qe"] == 0].iterrows():
-        f.append(("Quociente", f"{x.sg_uf}: a chapa atingiu {pc(x.pct_do_qe)} do QE e não elegeu Dep. Federal — o mais "
-                  f"votado ({x.mais_votado}) teve {pc(x.mais_votado_pct_qe)} do QE (mínimo de 10% para ocupar a vaga)."))
-    qd = qd[qd["faltaram_para_qe"] > 0]
-    if len(qd):
-        x = qd.iloc[0]
-        f.append(("Quociente", f"Mais perto de eleger Dep. Federal sem conseguir: {x.sg_uf} — {pc(x.pct_do_qe)} do QE; "
-                  f"faltaram {fmt(x.faltaram_para_qe)} votos. Bastaria converter {pc(x.conversao_necessaria_pct)} dos "
-                  f"votos de {nome} na UF (obtido: {pc(x.conversao_obtida_pct)})."))
+                  f"({pos} nessa razão). A correlação município a município entre o presidenciável e a chapa foi "
+                  f"{n2(meu.corr_mun_pres_df)}" + (" — a mais alta entre os principais candidatos." if
+                                                   maior_corr.destaque else ".")))
+    q = r["quociente"].copy()
+    if "faltaram_proximo_qe" not in q:
+        q["faltaram_proximo_qe"] = (q["votos_partido"] // q["qe"] + 1) * q["qe"] - q["votos_partido"]
+    for cargo in ("Dep. Federal", "Dep. Estadual/Distrital"):
+        qc = q[q["cargo"] == cargo]
+        for _, x in qc[qc["eleitos"] > 0].iterrows():
+            f.append(("Quociente", f"{cargo} em {x.sg_uf}: {n2(x.pct_do_qe / 100)} quocientes eleitorais e {x.eleitos} "
+                      f"eleito(s); faltaram {fmt(x.faltaram_proximo_qe)} votos para o quociente seguinte."))
+        sem = qc[qc["eleitos"] == 0].sort_values("pct_do_qe", ascending=False)
+        if len(sem):
+            x = sem.iloc[0]
+            f.append(("Quociente", f"{cargo}: mais perto de eleger sem conseguir foi {x.sg_uf}, com {pc(x.pct_do_qe)} do "
+                      f"QE; faltaram {fmt(x.faltaram_para_qe)} votos. Seria preciso reter {pc(x.conversao_necessaria_pct)} "
+                      f"dos votos de {nome} na UF (a chapa reteve {pc(x.conversao_obtida_pct)})."))
+    pos3 = b[b["renan_pos"] == 3]
+    if len(pos3):
+        ex = ", ".join(f"{m} ({u})" for m, u in pos3.nlargest(5, "aptos")[["nm_municipio", "sg_uf"]].itertuples(index=False))
+        f.append(("Pódio", f"{nome} ficou em 3º lugar em {len(pos3)} municípios, entre eles {ex}."))
+    conc = r.get("concentracao")
+    if conc is not None and len(conc):
+        x = conc[conc["fatia_dos_votos"] == "50%"].iloc[0]
+        f.append(("Concentração", f"Metade dos votos de {nome} veio de {x.municipios_candidato} municípios; metade dos "
+                  f"votos válidos do país vem de {x.municipios_eleitorado_geral}."))
+    porte = r.get("por_porte")
+    if porte is not None and len(porte) > 1:
+        a, z_ = porte.iloc[0], porte.iloc[-1]
+        f.append(("Porte", f"O % cresce com o tamanho da cidade: {pc(a.renan_pct)} nos municípios {a.faixa_eleitorado} "
+                  f"eleitores e {pc(z_.renan_pct)} nos de {z_.faixa_eleitorado}."))
+    pl = r.get("candidatos_partido")
+    if pl is not None and len(pl) and "corr_com_presidente" in pl:
+        prop = pl[pl["cargo"].isin(["Deputado Federal", "Deputado Estadual"]) & (pl["votos"] >= 20000)]
+        if len(prop):
+            x = prop.sort_values("corr_com_presidente").iloc[0]
+            f.append(("Voto próprio", f"{x.nome} ({x.cargo}, {x.sg_uf}) teve {fmt(x.votos)} votos com correlação de "
+                      f"{n2(x.corr_com_presidente)} com o mapa de {nome}: voto de base própria, não arrastado."))
     if "acertos_absolutos" in r and len(r["acertos_absolutos"]):
         a, e = r["acertos_absolutos"].iloc[0], r["erros_absolutos"].iloc[0]
         f.append(("Acerto", f"Maior ganho sobre o esperado pelo perfil: {a.nm_municipio} ({a.sg_uf}) com "

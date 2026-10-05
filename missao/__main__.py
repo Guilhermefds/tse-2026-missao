@@ -1,4 +1,4 @@
-"""CLI: python -m missao {baixar,processar,conferir,analisar,diagnosticar,sondar,tudo} [--dados DIR] [--saida DIR] [--fonte cdn|api|auto]"""
+"""CLI: python -m missao {baixar,processar,conferir,analisar,relatorio,diagnosticar,sondar,tudo} [--dados DIR] [--saida DIR] [--fonte cdn|api|auto]"""
 from __future__ import annotations
 
 import argparse
@@ -32,7 +32,7 @@ def conferir(cfg, t) -> None:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="missao", description=__doc__)
-    ap.add_argument("comando", choices=["baixar", "processar", "conferir", "analisar", "diagnosticar", "sondar", "tudo"])
+    ap.add_argument("comando", choices=["baixar", "processar", "conferir", "analisar", "relatorio", "diagnosticar", "sondar", "tudo"])
     ap.add_argument("--dados", help="diretório de dados (padrão: dados/)")
     ap.add_argument("--saida", help="diretório de saída (padrão: saida/)")
     ap.add_argument("--fonte", default="auto", choices=["auto", "cdn", "api"],
@@ -48,6 +48,10 @@ def main(argv=None) -> int:
         extra["dir_saida"] = a.saida
     cfg = carregar_config(**extra)
 
+    if a.comando == "relatorio":  # refaz modelo, destaques e saídas a partir de saida/analise_completa.xlsx
+        from .relatorio import reprocessar_planilha
+        reprocessar_planilha(cfg, sintetico=a.sintetico)
+        return 0
     if a.comando == "sondar":
         from .baixar import sondar_api
         from .config import RAIZ

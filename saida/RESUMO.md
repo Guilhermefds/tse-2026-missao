@@ -11,8 +11,15 @@
 - **Deputados > presidente:** Em 90 município(s) a chapa de Dep. Federal teve mais votos que Renan Santos; em 13 a de Dep. Estadual/Distrital.
 - **Deputados > presidente:** Caso mais extremo: VALE DO SOL (RS) — Dep. Federal 1.188 votos vs. 164 do presidente (7,2×), puxado por EVANDRO AUGUSTO.
 - **Puxador local:** EVANDRO AUGUSTO (Deputado Federal, RS) superou sozinho Renan Santos em 43 município(s).
-- **Guarda-chuva:** Cada voto em Renan Santos rendeu 0,46 voto(s) para a chapa de Dep. Federal (7º de 12 presidenciáveis nessa razão); correlação município a município de 0,74.
-- **Quociente:** Mais perto de eleger Dep. Federal sem conseguir: RR — 2,11% do QE; faltaram 39.013 votos. Bastaria converter 601,74% dos votos de Renan Santos na UF (obtido: 12,68%).
+- **Guarda-chuva:** Cada voto em Renan Santos rendeu 0,46 voto(s) para a chapa de Dep. Federal (4º entre os 5 mais votados nessa razão). A correlação município a município entre o presidenciável e a chapa foi 0,74 — a mais alta entre os principais candidatos.
+- **Quociente:** Dep. Federal em SP: 1,94 quocientes eleitorais e 1 eleito(s); faltaram 20.015 votos para o quociente seguinte.
+- **Quociente:** Dep. Federal: mais perto de eleger sem conseguir foi RJ, com 39,51% do QE; faltaram 114.986 votos. Seria preciso reter 89,73% dos votos de Renan Santos na UF (a chapa reteve 35,45%).
+- **Quociente:** Dep. Estadual/Distrital em SP: 1,73 quocientes eleitorais e 1 eleito(s); faltaram 66.362 votos para o quociente seguinte.
+- **Quociente:** Dep. Estadual/Distrital: mais perto de eleger sem conseguir foi PR, com 82,63% do QE; faltaram 19.880 votos. Seria preciso reter 64,50% dos votos de Renan Santos na UF (a chapa reteve 53,30%).
+- **Pódio:** Renan Santos ficou em 3º lugar em 315 municípios, entre eles SÃO PAULO (SP), CURITIBA (PR), PORTO ALEGRE (RS), JOINVILLE (SC), SANTOS (SP).
+- **Concentração:** Metade dos votos de Renan Santos veio de 99 municípios; metade dos votos válidos do país vem de 222.
+- **Porte:** O % cresce com o tamanho da cidade: 1,34% nos municípios até 5k eleitores e 2,92% nos de 1M+.
+- **Voto próprio:** RAFAEL MACRIS (Deputado Estadual, SP) teve 23.369 votos com correlação de -0,00 com o mapa de Renan Santos: voto de base própria, não arrastado.
 - **Acerto:** Maior ganho sobre o esperado pelo perfil: RIO DE JANEIRO (RJ) com 1.718 votos acima do previsto (2,55% vs. 2,50%).
 - **Erro:** Maior perda frente ao esperado: SÃO PAULO (SP) com 5.999 votos abaixo do previsto (3,81% vs. 3,90%).
 - **Exterior:** No exterior: 8.580 votos (2,59%), 1,2× o % nacional. Melhor cidade: LISBOA (838 votos).
@@ -23,33 +30,33 @@
 |---|---|
 | Votos do candidato a Presidente | 2.675.777 |
 | % dos válidos (Brasil + exterior) | 2,24 |
-| Posição nacional | 4 |
+| Posição nacional | 4,00 |
 | Votos no exterior | 8.580 |
 | Municípios com ao menos 1 voto | 5.571 |
-| Municípios sem nenhum voto | 0 |
-| Municípios com ≥ 5% dos válidos | 0 |
-| Municípios com ≥ 10% dos válidos | 0 |
-| Municípios em 1º lugar | 0 |
-| Municípios em 2º lugar | 0 |
-| Municípios em 3º lugar | 315 |
+| Municípios sem nenhum voto | 0,00 |
+| Municípios com ≥ 5% dos válidos | 0,00 |
+| Municípios com ≥ 10% dos válidos | 0,00 |
+| Municípios em 1º lugar | 0,00 |
+| Municípios em 2º lugar | 0,00 |
+| Municípios em 3º lugar | 315,00 |
 | Deputado Federal: votos do partido (nominal + legenda) | 1.223.569 |
 | Deputado Federal: votos de legenda | 72.586 |
 | Deputado Federal: % dos válidos | 1,08 |
-| Deputado Federal: candidatos com votos | 317 |
-| Deputado Federal: eleitos | 1 |
+| Deputado Federal: candidatos com votos | 317,00 |
+| Deputado Federal: eleitos | 1,00 |
 | Deputado Federal: votos do partido ÷ votos do presidente | 0,46 |
 | Deputado Estadual/Distrital: votos do partido (nominal + legenda) | 805.919 |
 | Deputado Estadual/Distrital: votos de legenda | 91.407 |
 | Deputado Estadual/Distrital: % dos válidos | 0,71 |
-| Deputado Estadual/Distrital: candidatos com votos | 164 |
-| Deputado Estadual/Distrital: eleitos | 1 |
+| Deputado Estadual/Distrital: candidatos com votos | 164,00 |
+| Deputado Estadual/Distrital: eleitos | 1,00 |
 | Deputado Estadual/Distrital: votos do partido ÷ votos do presidente | 0,30 |
-| Governador: candidatos | 9 |
+| Governador: candidatos | 9,00 |
 | Governador: votos somados | 328.154 |
-| Governador: eleitos / 2º turno | 0 |
-| Senador: candidatos | 5 |
+| Governador: eleitos / 2º turno | 0,00 |
+| Senador: candidatos | 5,00 |
 | Senador: votos somados | 684.138 |
-| Senador: eleitos / 2º turno | 0 |
+| Senador: eleitos / 2º turno | 0,00 |
 
 
 ## Estados (ordenado pelo % do presidenciável)
@@ -125,7 +132,7 @@
 | SAMARA | UP | 122.908 | 45.431 | 0,37× | 0,51 |
 | HERTZ DIAS | PSTU | 43.100 | 18.695 | 0,43× | 0,52 |
 | CLARIANA BARAO | DC | 40.040 | 114.402 | 2,86× | 0,16 |
-| EDMILSON COSTA |  | 22.688 | 0 | 0,00× | – |
+| EDMILSON COSTA | – | 22.688 | 0 | 0,00× | – |
 | VETERINÁRIO WILSON GRASSI | DEMOCRATA | 16.879 | 27.195 | 1,61× | 0,23 |
 | RUI COSTA PIMENTA | PCO | 15.024 | 3.041 | 0,20× | 0,14 |
 

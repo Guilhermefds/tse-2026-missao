@@ -451,6 +451,10 @@ button.mais{cursor:pointer;font-weight:600} button.mais:hover{background:var(--b
 button.mais:focus-visible,input.busca:focus-visible,th:focus-visible{outline:2px solid var(--c-b);outline-offset:1px}
 input.busca{min-width:0;width:min(280px,100%)}
 .vazio{color:var(--muted);font-style:italic}
+.leitura{display:grid;gap:12px;max-width:78ch}
+.leitura h3{margin-top:10px}
+.leitura ul{margin:0;padding-left:20px;display:grid;gap:6px}
+.leitura p,.leitura li{color:var(--ink);font-size:15px}
 .glossario{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px}
 .glossario div{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px;display:grid;gap:4px}
 .glossario b{font-family:var(--f-display);font-stretch:85%;font-size:16px}
@@ -523,7 +527,15 @@ def _val(df: pd.DataFrame, indicador: str, padrao=float("nan")):
     return s.iat[0] if len(s) else padrao
 
 
+class _Resultados(dict):
+    """Resultados com tabela vazia no lugar de análises sem linhas (ex.: nenhum município em 1º lugar)."""
+
+    def __missing__(self, chave):
+        return pd.DataFrame()
+
+
 def montar_html(cfg: Config, r: dict, sintetico: bool = False) -> str:
+    r = _Resultados(r)
     nome, pnome, pnum = cfg.presidente_nome, cfg.partido_nome, cfg.partido_numero
     primeiro = nome.split()[0]
     rot = {"renan_votos": f"Votos {primeiro}", "renan_pct": f"% {primeiro}", "renan_pct100": f"% {primeiro}",
@@ -819,7 +831,13 @@ def montar_html(cfg: Config, r: dict, sintetico: bool = False) -> str:
                    "inclusive a base municipal completa.",
                    '<div class="glossario">' + "".join(f"<div><b>{_e(a)}</b><p>{_e(b)}</p></div>" for a, b in glossario) + "</div>")
 
-    nav = "".join(f'<a href="#{i}">{t}</a>' for i, t in [
+    leitura = cfg.dir_saida / "LEITURA.md"
+    s_leitura = ""
+    if leitura.exists():
+        s_leitura = (f'<section class="secao" id="leitura"><header><span class="num-secao">00</span><h2>Leitura do '
+                     f'resultado</h2></header><div class="leitura">{markdown_simples(leitura.read_text(encoding="utf-8"))}'
+                     f'</div></section>')
+    nav = "".join(f'<a href="#{i}">{t}</a>' for i, t in [("leitura", "Leitura")] * bool(s_leitura) + [
         ("destaques", "Destaques"), ("presidenciaveis", "Presidente"), ("estados", "Estados"), ("cidades", "Cidades"),
         ("distorcoes", "Distorções"), ("acertos", "Acertos e erros"), ("guarda-chuva", "Guarda-chuva"),
         ("deputados", "Deputados × pres."), ("quociente", "Quociente"), ("candidatos", "Candidatos"),
@@ -842,7 +860,7 @@ def montar_html(cfg: Config, r: dict, sintetico: bool = False) -> str:
 <section class="secao" id="destaques"><header><span class="num-secao">00</span><h2>Destaques</h2></header>
 <div class="kpis">{kpis}</div>
 <ul class="fatos">{fatos}</ul></section>
-{s_pres}{s_uf}{s_cid}{s_dist}{s_ae}{s_gc}{s_dep}{s_qe}{s_cand}{s_zona}{s_orig}{s_met}
+{s_leitura}{s_pres}{s_uf}{s_cid}{s_dist}{s_ae}{s_gc}{s_dep}{s_qe}{s_cand}{s_zona}{s_orig}{s_met}
 <footer><span>Gerado em {gerado} por <code>python -m missao analisar</code>.</span>
 <span>Fonte: Tribunal Superior Eleitoral. Percentuais sobre votos válidos do cargo.</span></footer>
 </div>
@@ -903,7 +921,7 @@ def gerar_relatorio(cfg: Config, r: dict, sintetico: bool = False) -> dict[str, 
     caminhos["xlsx"] = saida / "analise_completa.xlsx"
     with pd.ExcelWriter(caminhos["xlsx"], engine="openpyxl") as xw:
         for nome, df in r.items():
-            if isinstance(df, pd.DataFrame) and len(df):
+            if isinstance(df, pd.DataFrame) and len(df.columns):
                 d = df.copy()
                 for c in d.columns:
                     if isinstance(d[c].dtype, pd.CategoricalDtype):
@@ -918,3 +936,67 @@ def gerar_relatorio(cfg: Config, r: dict, sintetico: bool = False) -> dict[str, 
     for k, v in caminhos.items():
         print(f"[relatório] {k}: {v}")
     return caminhos
+
+
+# =========================================================================== reprocessar a partir da planilha
+
+def carregar_planilha(cfg: Config, caminho: Path) -> dict[str, pd.DataFrame]:
+    """Lê analise_completa.xlsx de volta para o dicionário de resultados (um DataFrame por aba)."""
+    from .metricas import _rotulo_faixa
+    r = pd.read_excel(caminho, sheet_name=None)
+    b = r["base_municipal"]
+    fx = cfg.faixas_eleitorado
+    b["faixa_eleitorado"] = pd.cut(b["aptos"], bins=fx, right=False,
+                                   labels=[_rotulo_faixa(fx[i], fx[i + 1]) for i in range(len(fx) - 1)])
+    for nome in ("resumo", "guarda_chuva_resumo"):
+        if nome in r:
+            r[nome]["valor"] = r[nome]["valor"].astype(object)
+    return r
+
+
+def reprocessar_planilha(cfg: Config, sintetico: bool = False) -> dict[str, Path]:
+    """Refaz modelo, destaques e saídas a partir de saida/analise_completa.xlsx (sem precisar dos dados brutos)."""
+    from .metricas import fatos, modelo_esperado
+    r = carregar_planilha(cfg, cfg.dir_saida / "analise_completa.xlsx")
+    base = r["base_municipal"].drop(columns=["pct_esperado", "residuo_pp", "votos_acima_esperado"], errors="ignore")
+    novo = modelo_esperado(cfg, base)
+    residuos = novo.pop("_residuos")
+    r.update(novo)
+    r["base_municipal"] = base.merge(residuos, on=["sg_uf", "cd_municipio"], how="left")
+    q = r["quociente"]
+    q["faltaram_proximo_qe"] = (q["votos_partido"] // q["qe"] + 1) * q["qe"] - q["votos_partido"]
+    r["fatos"] = fatos(cfg, base, r)
+    return gerar_relatorio(cfg, r, sintetico=sintetico)
+
+
+def markdown_simples(texto: str) -> str:
+    """Converte o Markdown da leitura (títulos ###, listas -, **negrito**, parágrafos) em HTML."""
+    def inline(t: str) -> str:
+        t = html.escape(t)
+        return re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", t)
+    saida, lista, paragrafo = [], [], []
+
+    def fechar():
+        if paragrafo:
+            saida.append(f"<p>{inline(' '.join(paragrafo))}</p>")
+            paragrafo.clear()
+        if lista:
+            saida.append("<ul>" + "".join(f"<li>{inline(i)}</li>" for i in lista) + "</ul>")
+            lista.clear()
+    for linha in texto.splitlines():
+        l = linha.strip()
+        if not l:
+            fechar()
+        elif l.startswith("#"):
+            fechar()
+            saida.append(f"<h3>{inline(l.lstrip('#').strip())}</h3>")
+        elif l.startswith("- "):
+            if paragrafo:
+                fechar()
+            lista.append(l[2:])
+        else:
+            if lista:
+                fechar()
+            paragrafo.append(l)
+    fechar()
+    return "\n".join(saida)
