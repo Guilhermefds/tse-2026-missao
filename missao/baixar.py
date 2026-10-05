@@ -362,8 +362,67 @@ def sondar_api(cfg: Config, destino: Path, eleicoes_extra: list[str] | None = No
             for cargo in CARGOS_API:
                 for nome, url in _padroes_url(base, ele, uf, mun, cargo).items():
                     pegar(f"e{ele}_{nome}", url)
+        _sondar_app(cfg, cliente, destino, reg)
     (destino / "LEIAME.txt").write_text(
         "Respostas reais da API de divulgação do TSE, gravadas por `python -m missao sondar`.\n"
         "Status HTTP de cada endereço testado:\n\n" + "\n".join(log) + "\n", encoding="utf-8")
     print(f"\n[sondar] {sum(1 for _ in destino.glob('*.json'))} respostas salvas em {destino}. Envie a pasta pelo git:")
     print(f"  git add {destino.name} && git commit -m \"Amostras da API do TSE\" && git push")
+
+
+def _sondar_app(cfg: Config, cliente: httpx.Client, destino: Path, reg) -> None:
+    """Lê o JavaScript do site oficial de resultados e extrai os modelos de URL de arquivos .json.
+
+    O site do TSE monta os endereços dos resultados no navegador; os modelos ficam no código do app.
+    Grava os trechos relevantes em app_urls.txt (sem baixar dados de resultado).
+    """
+    import re
+    from urllib.parse import urljoin
+
+    r = None
+    raiz = cfg.url_divulgacao.rsplit("/oficial", 1)[0]
+    for app in (f"{cfg.url_divulgacao}/app/index.html", f"{cfg.url_divulgacao}/app/", f"{raiz}/", f"{raiz}/index.html"):
+        try:
+            r = cliente.get(app)
+        except httpx.HTTPError as erro:
+            reg(f"ERRO  app: {app} — {erro}")
+            continue
+        reg(f"{r.status_code}   app: {app} ({len(r.content):,} bytes)")
+        if r.status_code == 200 and ".js" in r.text:
+            app = str(r.url)
+            break
+    else:
+        return
+    (destino / "app_index.html").write_bytes(r.content)
+    pendentes = list(dict.fromkeys(re.findall(r'(?:src|href)="([^"]+\.js)"', r.text)))
+    vistos: set[str] = set()
+    trechos: list[str] = []
+    padrao = re.compile(r".{0,200}(?:\.json|dados-simplificados|/dados/|/config/|-cm\b|-r\b|-u\b|-v\b|-f\b).{0,200}")
+    chave = re.compile(r"json|dados|config|abr|cargo|ele|mun", re.I)
+    while pendentes and len(vistos) < 60:
+        js = pendentes.pop(0)
+        url = urljoin(app, js)
+        if url in vistos:
+            continue
+        vistos.add(url)
+        time.sleep(0.2)
+        try:
+            rj = cliente.get(url)
+        except httpx.HTTPError:
+            continue
+        reg(f"{rj.status_code}   js: {url} ({len(rj.content):,} bytes)")
+        if rj.status_code != 200:
+            continue
+        texto = rj.text
+        for m in padrao.finditer(texto):
+            t = m.group(0)
+            if ".json" in t and chave.search(t):
+                trechos.append(f"[{Path(url).name}] {t}")
+        # chunks carregados sob demanda (webpack/angular): nomes como 123.abcdef0123.js ou chunk-XYZ.js
+        for nome in re.findall(r'["\']([\w.-]+\.[0-9a-f]{8,}\.js|chunk-[\w-]+\.js)["\']', texto):
+            pendentes.append(nome)
+        for num, hsh in re.findall(r'(\d+):"([0-9a-f]{16,20})"', texto)[:200]:
+            pendentes.append(f"{num}.{hsh}.js")
+    unicos = list(dict.fromkeys(trechos))
+    (destino / "app_urls.txt").write_text("\n".join(unicos) or "(nenhum trecho com .json encontrado)", encoding="utf-8")
+    reg(f"      {len(vistos)} arquivos JS lidos; {len(unicos)} trechos com endereços .json em app_urls.txt")
