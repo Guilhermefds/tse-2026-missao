@@ -264,3 +264,14 @@ def test_consolidado_vazio_sem_api_explica(ambiente_api, tmp_path):
     shutil.copytree(ambiente_api / "vazio" / "brutos" / "cdn", tmp_path / "brutos" / "cdn")
     with pytest.raises(SystemExit, match="--fonte api"):
         processar(carregar_config(dir_dados=tmp_path, dir_saida=tmp_path / "s"))
+
+
+def test_limitador_respeita_taxa():
+    import time
+    from concurrent.futures import ThreadPoolExecutor
+    from missao.baixar import Limitador
+    lim = Limitador(50)
+    t0 = time.monotonic()
+    with ThreadPoolExecutor(8) as pool:
+        list(pool.map(lambda _: lim.esperar(), range(51)))
+    assert time.monotonic() - t0 >= 0.95  # 51 inícios a 50/s levam ≥ 1 s, mesmo com 8 threads

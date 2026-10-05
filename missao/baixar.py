@@ -8,6 +8,7 @@ nos primeiros dias após a eleição).
 from __future__ import annotations
 
 import json
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -28,6 +29,42 @@ DATASETS_CDN = [
 ]
 
 CARGOS_API = [PRESIDENTE, GOVERNADOR, SENADOR, DEP_FEDERAL, DEP_ESTADUAL, DEP_DISTRITAL]
+
+# O TSE permite até 100 requisições/s por IP na divulgação; acima disso bloqueia o IP por 10 minutos
+# (e reinicia a contagem a cada nova tentativa). Ficamos bem abaixo e, se bloqueados, esperamos 11 min.
+REQ_POR_SEGUNDO = 40
+PAUSA_BLOQUEIO = 11 * 60
+
+
+class Limitador:
+    """Garante no máximo `taxa` inícios de requisição por segundo, somando todas as threads."""
+
+    def __init__(self, taxa: float):
+        self.intervalo = 1.0 / taxa
+        self.proximo = time.monotonic()
+        self.trava = threading.Lock()
+        self.bloqueado_ate = 0.0
+        self.pausas = 0
+
+    def esperar(self) -> None:
+        with self.trava:
+            agora = time.monotonic()
+            inicio = max(self.proximo, agora, self.bloqueado_ate)
+            self.proximo = inicio + self.intervalo
+        time.sleep(max(0.0, inicio - time.monotonic()))
+
+    def bloquear(self, segundos: float, maximo: int = 3) -> bool | None:
+        """Pausa todas as threads. True para a thread que iniciou a pausa (avisa uma vez), False se já havia
+        pausa em curso, None se o limite de pausas acabou (aí o 403 não é por excesso de requisições)."""
+        with self.trava:
+            alvo = time.monotonic() + segundos
+            if alvo - self.bloqueado_ate < 60:
+                return False
+            if self.pausas >= maximo:
+                return None
+            self.pausas += 1
+            self.bloqueado_ate = alvo
+            return True
 
 
 def _cliente(timeout: float = 120.0) -> httpx.Client:
@@ -162,7 +199,7 @@ def _cargos_da_eleicao(cfg: Config, cliente: httpx.Client, ciclo: str, ele: str,
     return existentes
 
 
-def baixar_api(cfg: Config, eleicoes: list[str] | None = None, max_workers: int = 24) -> Path:
+def baixar_api(cfg: Config, eleicoes: list[str] | None = None, max_workers: int = 16) -> Path:
     """Baixa os resultados por município da API de divulgação (JSON 'dados-simplificados').
 
     Salva em dados/brutos/api/{eleicao}/{uf}/{uf}{mun}-c{cargo}-e{eleicao}-r.json
@@ -209,14 +246,25 @@ def baixar_api(cfg: Config, eleicoes: list[str] | None = None, max_workers: int 
         print(f"[api] {len(tarefas)} arquivos candidatos")
         faltando = [(u, d) for u, d in tarefas if not d.exists()]
 
+        limitador = Limitador(REQ_POR_SEGUNDO)
+
         def _um(par):
             url, destino = par
             for tentativa in range(4):
                 try:
+                    limitador.esperar()
                     r = cliente.get(url)
                     if r.status_code == 404:
                         return "404"
-                    if r.status_code in (429, 500, 502, 503, 504):
+                    if r.status_code in (403, 429):  # bloqueio por excesso de requisições
+                        pausa = limitador.bloquear(PAUSA_BLOQUEIO)
+                        if pausa is None:
+                            return f"erro: HTTP {r.status_code}"
+                        if pausa:
+                            print(f"[api] o TSE bloqueou temporariamente o acesso (HTTP {r.status_code}); "
+                                  f"pausando {PAUSA_BLOQUEIO // 60} minutos e continuando…")
+                        continue
+                    if r.status_code in (500, 502, 503, 504):
                         time.sleep(2 ** (tentativa + 1))
                         continue
                     r.raise_for_status()
