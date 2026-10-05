@@ -1,0 +1,31 @@
+# Configuração da análise — Missão (14) / Eleições Gerais 2026
+ano: 2026
+turno: 1
+ano_comparacao: 2022           # eleição usada como base de "voto esperado" e origem dos votos
+
+partido:
+  sigla: MISSAO                # SG_PARTIDO nos arquivos do TSE (sem acento, como o TSE grava)
+  numero: 14
+  nome_exibicao: Missão
+
+presidente:
+  numero: 14                   # NR_CANDIDATO do Renan Santos
+  nome_exibicao: Renan Santos
+
+# Candidatos de referência 2022 para a regressão de "origem dos votos" (números de urna 2022)
+referencia_2022:
+  "13": Lula
+  "22": Bolsonaro
+  "12": Ciro
+  "15": Tebet
+  "30": "Felipe d'Avila"
+  "44": Soraya
+
+# Limiares usados nos rankings (evitam ruído de municípios minúsculos)
+min_eleitores_ranking: 5000
+faixas_eleitorado: [0, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000, 100000000]
+
+# Fontes
+fontes:
+  cdn: https://cdn.tse.jus.br/estatistica/sead/odsele
+  divulgacao: https://resultados.tse.jus.br/oficial
