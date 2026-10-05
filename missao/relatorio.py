@@ -61,17 +61,22 @@ ROTULOS = {
     "fatia_dos_votos": "Fatia dos votos", "municipios_candidato": "Municípios (pres.)",
     "municipios_eleitorado_geral": "Municípios (válidos gerais)", "municipios_em_1o": "Municípios em 1º",
     "tema": "Tema", "fato": "Fato", "tipo": "Tipo", "validos_df": "Válidos DF", "validos_de": "Válidos DE",
+    "meta_votos": "Meta 1,5% (votos)", "faltam": "Faltam", "faltam_acumulado": "Faltam (acumulado)",
+    "pct_se_100_renan": "% com 100% do pres.", "agremiacao": "Partido/federação", "partidos": "Partidos",
+    "pct_nacional": "% no país", "ufs_com_1_5pct": "UFs ≥ 1,5%", "ufs_com_eleito": "UFs com eleito",
+    "criterio_votos": "Critério votos", "criterio_eleitos": "Critério eleitos", "atingiu": "Atingiu",
 }
 
 INT = re.compile(r"^(aptos|eleitorado|validos.*|renan_votos|df_total|df_nominais|df_legenda|de_total|top_d._votos|"
                  r"votos.*|municipios.*|gov_votos|sen_votos|qe|faltaram.*|vagas|eleitos|candidatos|zonas|"
                  r"quocientes_partidarios|mun_renan_1o_3o|distorcao_.*_z3|df_votos_partido|de_votos_partido|"
                  r"ufs_com_chapa_df|df_maior_que_pres|de_maior_que_pres|algum_candidato_maior|todos_municipios|"
-                 r"posicao_partido_na_uf|nr_zona|nr|nr_candidato|quintil|rank_no_partido_uf|renan_pos)$")
+                 r"posicao_partido_na_uf|nr_zona|nr|nr_candidato|quintil|rank_no_partido_uf|renan_pos|meta_votos|faltam|"
+                 r"faltam_acumulado|ufs_com_1_5pct|ufs_com_eleito|faltaram_proximo_qe)$")
 PCT = re.compile(r"^(renan_pct|renan_pct100|pct_uf100|pct_uf|pct_suav100|df_pct|df_pct100|de_pct|"
                  r"participacao_no_total|mediana_mun_pct|pct_esperado|pct_do_qe|mais_votado_pct_qe|conversao_.*|"
                  r"pct_min|pct_max|pct|pct_votos.*|pct_mun_df_maior|pct_pres_m..|pct_dos_votos_do_candidato|"
-                 r"legenda_share_partido|efeito_relativo_pct)$")
+                 r"legenda_share_partido|efeito_relativo_pct|pct_nacional|pct_se_100_renan)$")
 PP = re.compile(r"^(residuo_pp|gap_pres_df_pp|amplitude_pp|amplitude_pct_suav)$")
 RAZAO = re.compile(r"^(idr|idr_suav|razao_.*|capital_vs_uf|legenda_por_.*|votos_cand_por_voto_pres_uf)$")
 DEC = re.compile(r"^(corr_.*|elasticidade.*|z_robusto|hhi_concentracao|coef_.*|erro_padrao|taxa_migracao_estimada)$")
@@ -116,9 +121,14 @@ def valor_ordenacao(v) -> str:
     return html.escape(str(v), quote=True) if v is not None and not (isinstance(v, float) and np.isnan(v)) else ""
 
 
+COLUNAS_NOME = ("nm_municipio", "nome", "nm_urna", "candidato", "agremiacao", "grupo_referencia", "mais_votado",
+                "regiao", "tipo", "faixa_eleitorado", "indicador", "item")
+
+
 def tabela(df: pd.DataFrame, colunas: list[str] | None = None, id_: str = "", visiveis: int = 12,
-           busca: bool = False, destaque: str | None = None, rotulos: dict | None = None) -> str:
-    """Tabela HTML ordenável (clique no cabeçalho), com 'mostrar todas' e busca opcional."""
+           busca: bool | None = None, destaque: str | None = None, rotulos: dict | None = None) -> str:
+    """Tabela HTML ordenável (clique no cabeçalho), com 'mostrar todas', 'restaurar' e filtros separados:
+    seletor de UF (quando há coluna de UF) e busca pelo nome (município/candidato), sem acento."""
     if df is None or df.empty:
         return '<p class="vazio">Sem registros para esta análise.</p>'
     colunas = [c for c in (colunas or list(df.columns)) if c in df.columns]
@@ -133,17 +143,32 @@ def tabela(df: pd.DataFrame, colunas: list[str] | None = None, id_: str = "", vi
             classes.append("extra")
         if destaque and bool(r.get(destaque)):
             classes.append("destaque")
-        tds = "".join(f'<td class="{"num" if tipos[c] != "txt" else ""}" data-v="{valor_ordenacao(r[c])}">'
-                      f'{html.escape(fmt(r[c], tipos[c]))}</td>' for c in colunas)
-        linhas.append(f'<tr class="{" ".join(classes)}">{tds}</tr>')
+        tds = "".join(f'<td class="{"num" if tipos[c] != "txt" else ""}" data-v="{valor_ordenacao(r[c])}"'
+                      + (f' title="{html.escape(fmt(r[c], tipos[c]), quote=True)}"' if j == 0 else "")
+                      + f'>{html.escape(fmt(r[c], tipos[c]))}</td>' for j, c in enumerate(colunas))
+        linhas.append(f'<tr class="{" ".join(classes)}" data-i="{i}">{tds}</tr>')
     n = len(df)
     controles = []
-    if busca:
-        controles.append(f'<input type="search" class="busca" id="busca-{id_}" placeholder="Filtrar linhas…" '
-                         f'aria-label="Filtrar linhas da tabela">')
+    if "sg_uf" in colunas and df["sg_uf"].nunique() > 1:
+        ufs = sorted(df["sg_uf"].dropna().astype(str).unique())
+        opcoes = "".join(f'<option value="{_e(u)}">{_e(u)}</option>' for u in ufs)
+        controles.append(f'<select class="filtro-uf" id="uf-{id_}" data-col="{colunas.index("sg_uf")}" '
+                         f'aria-label="Filtrar por UF" autocomplete="off"><option value="">Todas as UFs</option>'
+                         f'{opcoes}</select>')
+    col_nome = next((c for c in COLUNAS_NOME if c in colunas), None)
+    if busca is None:
+        busca = n > 15
+    if busca and col_nome:
+        rotulo_nome = rot.get(col_nome, col_nome).lower()
+        controles.append(f'<input type="search" class="busca" id="busca-{id_}" data-col="{colunas.index(col_nome)}" '
+                         f'placeholder="Buscar {_e(rotulo_nome)}…" aria-label="Buscar {_e(rotulo_nome)}" '
+                         f'autocomplete="off">')
     if n > visiveis:
-        controles.append(f'<button type="button" class="mais" id="mais-{id_}" data-total="{n}">'
+        controles.append(f'<button type="button" class="mais" id="mais-{id_}" data-total="{n}" data-vis="{visiveis}">'
                          f'Mostrar todas as {n0(n)} linhas</button>')
+    if n > 1:
+        controles.append(f'<button type="button" class="restaurar" id="restaurar-{id_}" disabled '
+                         f'title="Volta à ordem original, limpa o filtro e recolhe a tabela">Restaurar ordem</button>')
     barra = f'<div class="tabela-ctrl">{"".join(controles)}</div>' if controles else ""
     return (f'<div class="tabela" id="t-{id_}">{barra}<div class="rolagem"><table><thead><tr>{th}</tr></thead>'
             f'<tbody>{"".join(linhas)}</tbody></table></div></div>')
@@ -264,6 +289,30 @@ def svg_barras_qe(rotulos, valores, eleitos, tips, titulo) -> str:
     return _legenda([("m-b", "Atingiu o QE"), ("m-b2", "Entre 80% e 100% do QE"), ("m-ctx", "Abaixo de 80%")]) + _box("".join(out))
 
 
+def svg_barras_ref(rotulos, valores, ref, rotulo_ref, tips, titulo, sufixo="%") -> str:
+    """Barras horizontais com uma linha de referência (ex.: 1,5% por UF da cláusula de barreira)."""
+    n = len(rotulos)
+    L, R, T, h = 46, 70, 26, 19
+    W, H = 720, T + n * h + 28
+    vmax = max(max(valores) * 1.08 if valores else 0, ref * 1.6)
+    x = lambda v: L + (W - L - R) * min(v, vmax) / vmax  # noqa: E731
+    out = [f'<svg viewBox="0 0 {W} {H}" role="img" aria-label="{_e(titulo)}" class="grafico">']
+    for t in _ticks(vmax):
+        out.append(f'<line x1="{x(t):.1f}" x2="{x(t):.1f}" y1="{T - 4}" y2="{H - 22}" class="grade"/>'
+                   f'<text x="{x(t):.1f}" y="{H - 6}" class="eixo" text-anchor="middle">{n1(t)}{sufixo}</text>')
+    out.append(f'<line x1="{x(ref):.1f}" x2="{x(ref):.1f}" y1="{T - 12}" y2="{H - 22}" class="ref"/>'
+               f'<text x="{x(ref) + 4:.1f}" y="{T - 14}" class="eixo">{_e(rotulo_ref)}</text>')
+    for i, (r, v, tip) in enumerate(zip(rotulos, valores, tips)):
+        yy = T + i * h
+        w = max(0.0, x(v) - L)
+        out.append(f'<g class="alvo" data-tip="{_e(tip)}"><rect x="0" y="{yy}" width="{W}" height="{h}" class="faixa"/>'
+                   f'<text x="{L - 8}" y="{yy + h / 2 + 4}" class="rot" text-anchor="end">{_e(r)}</text>'
+                   f'<rect x="{L}" y="{yy + 3}" width="{w:.1f}" height="{h - 6}" rx="3" class="{"m-b" if v >= ref else "m-ctx"}"/>'
+                   f'<text x="{L + w + 5:.1f}" y="{yy + h / 2 + 4}" class="rot">{n2(v)}{sufixo}</text></g>')
+    out.append("</svg>")
+    return _legenda([("m-b", f"Atingiu {rotulo_ref}"), ("m-ctx", "Abaixo")]) + _box("".join(out))
+
+
 def svg_divergente(rotulos, valores, tips, titulo) -> str:
     """Barras divergentes: desempenho real ÷ esperado − 1 (em %)."""
     n = len(rotulos)
@@ -360,6 +409,7 @@ CSS = r"""
   --band:#eef1f6; --accent:#c4501f; --accent-soft:#fbe9e1;
   --c-a:#eb6834; --c-b:#2a78d6; --c-b2:#86b6ef; --c-c:#1baf7a; --c-ctx:#b5bcc8; --c-pos:#2a78d6; --c-neg:#e34948;
   --warn-bg:#fff4d6; --warn-ink:#6b4a00;
+  --ok:#0b7a0b; --ok-bg:#eaf6ea; --crit:#b42828; --crit-bg:#fdecec;
   --f-display:"Archivo","Arial Narrow",system-ui,sans-serif; --f-body:"Public Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
   --f-mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
   color-scheme:light;
@@ -368,12 +418,12 @@ CSS = r"""
   --bg:#0f1216; --surface:#171b21; --ink:#eef1f5; --ink-2:#b4bcc8; --muted:#8a93a1; --line:#2a313b; --grid:#232932;
   --band:#1d232b; --accent:#f08a5d; --accent-soft:#3a2219;
   --c-a:#d95926; --c-b:#3987e5; --c-b2:#1c5cab; --c-c:#199e70; --c-ctx:#5a6372; --c-pos:#3987e5; --c-neg:#e66767;
-  --warn-bg:#3a2e0b; --warn-ink:#ffd66b; color-scheme:dark}}
+  --warn-bg:#3a2e0b; --warn-ink:#ffd66b; --ok:#3fcf3f; --ok-bg:#132a14; --crit:#ff7b7b; --crit-bg:#3a1717; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#0f1216; --surface:#171b21; --ink:#eef1f5; --ink-2:#b4bcc8; --muted:#8a93a1; --line:#2a313b; --grid:#232932;
   --band:#1d232b; --accent:#f08a5d; --accent-soft:#3a2219;
   --c-a:#d95926; --c-b:#3987e5; --c-b2:#1c5cab; --c-c:#199e70; --c-ctx:#5a6372; --c-pos:#3987e5; --c-neg:#e66767;
-  --warn-bg:#3a2e0b; --warn-ink:#ffd66b; color-scheme:dark}
+  --warn-bg:#3a2e0b; --warn-ink:#ffd66b; --ok:#3fcf3f; --ok-bg:#132a14; --crit:#ff7b7b; --crit-bg:#3a1717; color-scheme:dark}
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--ink);font:15px/1.55 var(--f-body);margin:0}
 .pagina{max-width:1120px;margin:0 auto;padding-inline:20px;padding-block:0 64px}
@@ -438,19 +488,43 @@ path.m-a,path.m-b,path.m-c{stroke-width:0}
 .rolagem{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
 table{border-collapse:collapse;width:100%;font-size:13px}
 th,td{padding:7px 10px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
-th{font-weight:700;color:var(--ink-2);font-size:12px;background:var(--band);cursor:pointer;user-select:none;position:sticky;top:0}
-th:hover{color:var(--ink)} th[aria-sort="ascending"]::after{content:" ▲";font-size:9px} th[aria-sort="descending"]::after{content:" ▼";font-size:9px}
+table{color:var(--ink)}
+td{color:var(--ink)}
+th{font-weight:700;color:var(--ink-2);font-size:12px;background:var(--band);cursor:pointer;user-select:none}
+th:hover{color:var(--ink)}
+th::after{content:" ↕";font-size:10px;opacity:.35}
+th[aria-sort="descending"]::after{content:" ▼";opacity:1;color:var(--accent)}
+th[aria-sort="ascending"]::after{content:" ▲";opacity:1;color:var(--accent)}
+th[aria-sort]{color:var(--ink)}
+.rolagem th:first-child,.rolagem td:first-child{position:sticky;left:0;z-index:1;box-shadow:1px 0 0 var(--line)}
+.rolagem td:first-child{background:var(--surface);font-weight:600}
+.rolagem th:first-child{background:var(--band);z-index:2}
+.rolagem tbody tr:hover td:first-child{background:var(--band)}
+.rolagem tr.destaque td:first-child{background:var(--accent-soft)}
+@media (max-width:640px){.rolagem td:first-child,.rolagem th:first-child{max-width:42vw;overflow:hidden;text-overflow:ellipsis}}
 td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 tbody tr:last-child td{border-bottom:0}
 tbody tr:hover{background:var(--band)}
 tr.extra{display:none} .tabela.aberta tr.extra{display:table-row}
 tr.oculta{display:none!important}
 tr.destaque td{background:var(--accent-soft);font-weight:700}
-button.mais,input.busca{font:inherit;font-size:13px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 10px}
-button.mais{cursor:pointer;font-weight:600} button.mais:hover{background:var(--band)}
-button.mais:focus-visible,input.busca:focus-visible,th:focus-visible{outline:2px solid var(--c-b);outline-offset:1px}
-input.busca{min-width:0;width:min(280px,100%)}
+select.filtro-uf,button.mais,button.restaurar,input.busca{font:inherit;font-size:13px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 10px}
+button.mais,button.restaurar{cursor:pointer;font-weight:600} button.mais:hover,button.restaurar:hover{background:var(--band)}
+button.restaurar:not(:disabled){border-color:var(--accent);color:var(--accent)}
+button.restaurar:disabled{cursor:default;opacity:.45}
+select.filtro-uf:focus-visible,button.mais:focus-visible,button.restaurar:focus-visible,input.busca:focus-visible,th:focus-visible{outline:2px solid var(--c-b);outline-offset:1px}
+.como-usar{font-size:13px;color:var(--muted)}
+input.busca{min-width:0;width:min(260px,100%)}
+select.filtro-uf{cursor:pointer}
 .vazio{color:var(--muted);font-style:italic}
+.criterios{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:12px}
+.criterio{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px;display:grid;gap:4px;align-content:start}
+.criterio .crit-tit{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+.criterio b{font:750 28px/1.1 var(--f-display);font-stretch:85%}
+.criterio small{color:var(--ink-2);font-size:12.5px}
+.pill{justify-self:start;font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px;border:1px solid}
+.pill.ok{color:var(--ok);border-color:var(--ok);background:var(--ok-bg)}
+.pill.nao{color:var(--crit);border-color:var(--crit);background:var(--crit-bg)}
 .leitura{display:grid;gap:12px;max-width:78ch}
 .leitura h3{margin-top:10px}
 .leitura ul{margin:0;padding-left:20px;display:grid;gap:6px}
@@ -469,35 +543,62 @@ code{font-family:var(--f-mono);font-size:.92em}
 
 JS = r"""
 (function(){
-  document.querySelectorAll('.tabela').forEach(function(box){
-    var tb=box.querySelector('tbody'), ths=box.querySelectorAll('th');
+  // Tabelas: clique no título ordena (1º clique: maior → menor; 2º: menor → maior).
+  // Nada é guardado: ao carregar (inclusive F5 e voltar do histórico) tudo volta à ordem padrão.
+  function iniciar(box){
+    var tb=box.querySelector('tbody'); if(!tb) return;
+    var ths=[].slice.call(box.querySelectorAll('th'));
+    var original=[].slice.call(tb.rows);
+    var bMais=box.querySelector('button.mais'), bRest=box.querySelector('button.restaurar'), busca=box.querySelector('input.busca');
+    var selUf=box.querySelector('select.filtro-uf');
+    var iUf=selUf?parseInt(selUf.dataset.col,10):-1, iNome=busca?parseInt(busca.dataset.col,10):-1;
+    function norm(t){return (t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();}
+    function filtrar(){
+      var uf=selUf?selUf.value:'', q=busca?norm(busca.value):'';
+      [].forEach.call(tb.rows,function(r){
+        var ok=(!uf||r.cells[iUf].textContent===uf)&&(!q||norm(r.cells[iNome].textContent).indexOf(q)>=0);
+        r.classList.toggle('oculta',!ok);});
+      if(uf||q){box.classList.add('aberta'); textoMais();}
+      atualizar();
+    }
+    var vis=bMais?parseInt(bMais.dataset.vis,10):Infinity;
+    function marcar(){ [].forEach.call(tb.rows,function(r,k){r.classList.toggle('extra',k>=vis);}); }
+    function textoMais(){ if(bMais) bMais.textContent=box.classList.contains('aberta')?'Mostrar menos':
+      'Mostrar todas as '+bMais.dataset.total.replace(/\B(?=(\d{3})+(?!\d))/g,'.')+' linhas'; }
+    function atualizar(){
+      var mudou=ths.some(function(t){return t.hasAttribute('aria-sort');})||(busca&&busca.value!=='')||(selUf&&selUf.value!=='')||box.classList.contains('aberta');
+      if(bRest) bRest.disabled=!mudou;
+    }
+    function ordenar(th,i){
+      var dir=th.getAttribute('aria-sort')==='descending'?'ascending':'descending';
+      ths.forEach(function(o){o.removeAttribute('aria-sort');}); th.setAttribute('aria-sort',dir);
+      var rows=[].slice.call(tb.rows);
+      rows.sort(function(a,b){
+        var x=a.cells[i].dataset.v,y=b.cells[i].dataset.v,nx=parseFloat(x),ny=parseFloat(y),r;
+        if(x===''&&y!=='')return 1; if(y===''&&x!=='')return -1;
+        r=(!isNaN(nx)&&!isNaN(ny))?nx-ny:x.localeCompare(y,'pt-BR');
+        return dir==='ascending'?r:-r;});
+      rows.forEach(function(r){tb.appendChild(r);}); marcar(); atualizar();
+    }
+    function restaurar(){
+      ths.forEach(function(o){o.removeAttribute('aria-sort');});
+      original.forEach(function(r){tb.appendChild(r); r.classList.remove('oculta');});
+      if(busca) busca.value=''; if(selUf) selUf.value='';
+      box.classList.remove('aberta'); textoMais(); marcar(); atualizar();
+    }
     ths.forEach(function(th,i){
-      th.tabIndex=0;
-      function ordenar(){
-        var asc=th.getAttribute('aria-sort')!=='descending'&&th.getAttribute('aria-sort')!==null?false:th.getAttribute('aria-sort')!=='descending';
-        var dir=th.getAttribute('aria-sort')==='descending'?'ascending':'descending';
-        ths.forEach(function(o){o.removeAttribute('aria-sort')}); th.setAttribute('aria-sort',dir);
-        var rows=Array.prototype.slice.call(tb.rows);
-        rows.sort(function(a,b){
-          var x=a.cells[i].dataset.v,y=b.cells[i].dataset.v,nx=parseFloat(x),ny=parseFloat(y),r;
-          if(x===''&&y!=='')return 1; if(y===''&&x!=='')return -1;
-          r=(!isNaN(nx)&&!isNaN(ny))?nx-ny:x.localeCompare(y,'pt-BR');
-          return dir==='ascending'?r:-r;});
-        var lim=box.dataset.vis?parseInt(box.dataset.vis,10):Infinity;
-        rows.forEach(function(r,k){tb.appendChild(r); r.classList.toggle('extra',k>=lim);});
-      }
-      th.addEventListener('click',ordenar);
-      th.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();ordenar();}});
+      th.tabIndex=0; th.title='Clique para ordenar do maior para o menor; clique de novo para inverter';
+      th.addEventListener('click',function(){ordenar(th,i);});
+      th.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();ordenar(th,i);}});
     });
-    var extras=box.querySelectorAll('tr.extra').length, total=tb.rows.length; box.dataset.vis=total-extras;
-    var b=box.querySelector('button.mais');
-    if(b){b.addEventListener('click',function(){var a=box.classList.toggle('aberta');
-      b.textContent=a?'Mostrar menos':'Mostrar todas as '+b.dataset.total.replace(/\B(?=(\d{3})+(?!\d))/g,'.')+' linhas';});}
-    var s=box.querySelector('input.busca');
-    if(s){s.addEventListener('input',function(){var q=s.value.trim().toLowerCase();
-      if(q){box.classList.add('aberta')}
-      Array.prototype.forEach.call(tb.rows,function(r){r.classList.toggle('oculta',q!==''&&r.textContent.toLowerCase().indexOf(q)<0)});});}
-  });
+    if(bMais) bMais.addEventListener('click',function(){box.classList.toggle('aberta'); textoMais(); atualizar();});
+    if(bRest) bRest.addEventListener('click',restaurar);
+    if(busca) busca.addEventListener('input',filtrar);
+    if(selUf) selUf.addEventListener('change',filtrar);
+    box._restaurar=restaurar; restaurar();
+  }
+  var tabelas=[].slice.call(document.querySelectorAll('.tabela')); tabelas.forEach(iniciar);
+  window.addEventListener('pageshow',function(){tabelas.forEach(function(b){b._restaurar&&b._restaurar();});});
   var dica=document.createElement('div'); dica.id='dica'; dica.hidden=true; document.body.appendChild(dica);
   document.addEventListener('pointermove',function(e){
     var el=e.target.closest&&e.target.closest('[data-tip]');
@@ -513,6 +614,17 @@ JS = r"""
 
 def _kpi(valor: str, rotulo: str, detalhe: str = "") -> str:
     return f'<div class="kpi"><span>{_e(rotulo)}</span><b>{_e(valor)}</b>{f"<small>{_e(detalhe)}</small>" if detalhe else ""}</div>'
+
+
+def _kpi_clausula(cfg: Config, r: dict) -> str:
+    cr = r.get("clausula_resumo")
+    if cr is None or not len(cr):
+        res = r["resumo"]
+        return _kpi(n0(_val(res, "Votos no exterior", 0)), "Votos no exterior", "")
+    v = dict(zip(cr["indicador"], cr["valor"]))
+    pct = next(val for k, val in v.items() if k.startswith("% dos válidos"))
+    return _kpi(n2(pct) + "%", "Cláusula de barreira",
+                f"meta {n2(cfg.clausula['pct_nacional'])}% · {str(v['Situação']).lower()}")
 
 
 def _secao(id_: str, numero: str, titulo: str, lead: str, corpo: str) -> str:
@@ -570,8 +682,7 @@ def montar_html(cfg: Config, r: dict, sintetico: bool = False) -> str:
         _kpi(n0(de_votos), "Votos para Dep. Estadual", f"{n0(de_eleitos)} eleito(s)"),
         _kpi(n2(razao) + "×", "Guarda-chuva", f"votos de Dep. Federal por voto em {primeiro}"),
         _kpi(n0(len(dm)), "Municípios onde DF > presidente", "chapa federal à frente do presidenciável"),
-        _kpi(n0(_val(res, "Votos no exterior", 0)), "Votos no exterior",
-             f"{n0(_val(res, 'Municípios com ≥ 5% dos válidos', 0))} municípios com ≥ 5%"),
+        _kpi_clausula(cfg, r),
     ])
 
     fatos = "".join(f'<li><span class="tema">{_e(t)}</span><span>{_e(f)}</span></li>'
@@ -583,7 +694,7 @@ def montar_html(cfg: Config, r: dict, sintetico: bool = False) -> str:
     s_pres = _secao("presidenciaveis", "01", "Corrida presidencial",
                     f"Posição de {nome} entre os presidenciáveis no 1º turno, com votos nominais válidos somados "
                     "em todos os municípios e no exterior.",
-                    T(pres, ["nr", "candidato", "votos", "pct", "municipios_em_1o"], id_="pres", destaque="destaque"))
+                    T(pres, ["candidato", "nr", "votos", "pct", "municipios_em_1o"], id_="pres", destaque="destaque"))
 
     # -------- 2. Estados
     uf = r["por_uf"]
@@ -716,7 +827,7 @@ def montar_html(cfg: Config, r: dict, sintetico: bool = False) -> str:
                   + _bloco("Comparação entre presidenciáveis (escala log)", g_gc,
                            "Votos da chapa de Dep. Federal do partido de cada presidenciável divididos pelos votos dele. "
                            "Linha vertical = 1×.")
-                  + _bloco("Tabela de comparação", T(gc, ["nr", "candidato", "partido", "federacao", "votos_presidente",
+                  + _bloco("Tabela de comparação", T(gc, ["candidato", "nr", "partido", "federacao", "votos_presidente",
                                                           "df_votos_partido", "df_legenda", "razao_df", "razao_df_federacao",
                                                           "razao_de", "legenda_por_voto_pres", "legenda_share_partido",
                                                           "ufs_com_chapa_df", "corr_mun_pres_df", "elasticidade_df"],
@@ -761,7 +872,7 @@ def montar_html(cfg: Config, r: dict, sintetico: bool = False) -> str:
                   f"cada UF. 'Conversão necessária' é a fração dos votos de {primeiro} na UF que a chapa precisaria "
                   "reter para atingir um QE; 'conversão obtida' é o que de fato reteve.",
                   _bloco("Dep. Federal: % do QE por UF", g_qe)
-                  + _bloco("Tabela do quociente", T(qe, ["cargo", "sg_uf", "vagas", "qe", "votos_partido", "pct_do_qe",
+                  + _bloco("Tabela do quociente", T(qe, ["sg_uf", "cargo", "vagas", "qe", "votos_partido", "pct_do_qe",
                                                          "quocientes_partidarios", "eleitos", "faltaram_para_qe",
                                                          "faltaram_para_80pct_qe", "candidatos", "mais_votado",
                                                          "votos_mais_votado", "mais_votado_pct_qe", "posicao_partido_na_uf",
@@ -771,11 +882,76 @@ def montar_html(cfg: Config, r: dict, sintetico: bool = False) -> str:
                            "candidato de 20% do QE; para ocupar vaga pelo quociente partidário, 10% do QE. Vagas inferidas "
                            "pelos eleitos nos dados; se ainda não houver totalização, usa-se a distribuição oficial."))
 
-    # -------- 9. Candidatos
-    s_cand = _secao("candidatos", "09", f"Candidatos do {pnome}",
+    # -------- 9. Cláusula de barreira
+    s_cl = ""
+    cr = r["clausula_resumo"]
+    if len(cr):
+        c = cfg.clausula
+        v = dict(zip(cr["indicador"], cr["valor"]))
+        achar = lambda prefixo: next((val for k, val in v.items() if k.startswith(prefixo)), None)  # noqa: E731
+        pct, falta = achar("% dos válidos"), achar("Faltaram para")
+        ufs_ok, dep, ufs_dep = achar("UFs com ≥"), achar("Deputados federais eleitos"), achar("UFs com deputado")
+        p100 = next((val for k, val in v.items() if k.endswith("% no país")), None)
+
+        def cartao(titulo, valor, meta, ok, detalhe):
+            pill = '<span class="pill ok">✓ Atingiu</span>' if ok else '<span class="pill nao">✕ Não atingiu</span>'
+            return (f'<div class="criterio"><span class="crit-tit">{_e(titulo)}</span><b>{_e(valor)}</b>'
+                    f'<small>meta: {_e(meta)}</small>{pill}<small>{_e(detalhe)}</small></div>')
+        cartoes = ('<div class="criterios">'
+                   + cartao("A · votos no país", f"{n2(pct)}%", f"{n2(c['pct_nacional'])}% dos válidos para a Câmara",
+                            pct >= c["pct_nacional"], f"faltaram {n0(falta)} votos")
+                   + cartao("A · distribuição", f"{ufs_ok} UF(s)", f"{c['ufs_minimo']} UFs com ≥ {n2(c['pct_uf'])}%",
+                            ufs_ok >= c["ufs_minimo"], "e o critério A exige as duas metas")
+                   + cartao("B · deputados eleitos", f"{dep}", f"{c['deputados']} em {c['ufs_minimo']} UFs",
+                            dep >= c["deputados"] and ufs_dep >= c["ufs_minimo"], f"em {ufs_dep} UF(s)")
+                   + "</div>")
+        cu = r["clausula_por_uf"].sort_values("pct", ascending=False)
+        g_cl = svg_barras_ref(cu["sg_uf"].tolist(), cu["pct"].fillna(0).tolist(), c["pct_uf"], f"{n2(c['pct_uf'])}%",
+                              [f"{u}: {n0(vt)} votos ({n2(p_)}%)\nMeta {n2(c['pct_uf'])}%: {n0(m)} votos"
+                               + (f" · faltam {n0(fa)}" if fa > 0 else " · atingida")
+                               for u, vt, p_, m, fa in cu[["sg_uf", "df_total", "pct", "meta_votos", "faltam"]]
+                               .itertuples(index=False)], "Percentual da chapa federal por UF")
+        partidos = r["clausula_partidos"]
+        bloco_partidos = ""
+        if len(partidos):
+            passaram = int(partidos["atingiu"].sum())
+            bloco_partidos = _bloco(
+                "Todos os partidos e federações", T(partidos, ["agremiacao", "partidos", "votos", "pct_nacional",
+                                                               "ufs_com_1_5pct", "eleitos", "ufs_com_eleito",
+                                                               "criterio_votos", "criterio_eleitos", "atingiu"],
+                                                    id_="clp", visiveis=40, destaque="destaque"),
+                f"{passaram} agremiações atingiram a cláusula. Federações contam como uma só agremiação; eleitos "
+                "de AM e MA e os de Dep. Estadual estimados pelas vagas quando o TSE ainda não publicou a lista.")
+        s_cl = _secao(
+            "clausula", "09", "Cláusula de barreira",
+            f"Regra da EC 97/2017 para 2026: o partido mantém acesso ao Fundo Partidário e à propaganda gratuita "
+            f"em 2027–2030 se, na eleição para a Câmara, tiver {n2(c['pct_nacional'])}% dos votos válidos no país com "
+            f"pelo menos {n2(c['pct_uf'])}% em {c['ufs_minimo']} UFs, ou eleger {c['deputados']} deputados federais "
+            f"em {c['ufs_minimo']} UFs. Situação do {pnome}: <strong>{_e(str(v['Situação']).lower())}</strong>.",
+            cartoes
+            + (f'<p class="nota">Mesmo que a chapa federal tivesse 100% dos votos de {_e(nome)} em cada UF, chegaria a '
+               f'{n2(p100)}% no país.</p>' if p100 is not None else "")
+            + _bloco("% da chapa federal por UF", g_cl,
+                     f"Linha vertical: {n2(c['pct_uf'])}% exigido em cada uma de {c['ufs_minimo']} UFs.")
+            + _bloco("Quanto falta em cada UF", T(r["clausula_por_uf"], ["sg_uf", "validos_df", "df_total", "pct",
+                                                                         "meta_votos", "faltam", "faltam_acumulado",
+                                                                         "eleitos", "renan_votos", "pct_se_100_renan",
+                                                                         "conversao_necessaria_pct"],
+                                               id_="cluf", visiveis=27),
+                     f"Ordenado pelo que falta para {n2(c['pct_uf'])}%. 'Acumulado' soma as UFs de cima para baixo: "
+                     f"a linha {c['ufs_minimo']} mostra quantos votos levariam o partido a {c['ufs_minimo']} UFs.")
+            + _bloco("Resumo", T(cr, id_="clr", visiveis=20))
+            + bloco_partidos
+            + '<p class="nota">Quem não atinge a cláusula perde, de 2027 a 2030, o Fundo Partidário e o tempo de '
+              'propaganda gratuita no rádio e na TV, e os eleitos pelo partido podem se filiar, sem perder o mandato, a '
+              'um partido que a tenha atingido (CF, art. 17, §§ 3º e 5º). Em 2030 a exigência sobe para 3% dos válidos, '
+              '2% em 9 UFs, ou 15 deputados.</p>')
+
+    # -------- 10. Candidatos
+    s_cand = _secao("candidatos", "10", f"Candidatos do {pnome}",
                     "Desempenho individual: votos, fatia da UF, quantos municípios alcançou, concentração (HHI: 1 = todo "
                     "voto num só município), reduto, correlação com o mapa do presidenciável e % do quociente eleitoral.",
-                    T(r["candidatos_partido"], ["cargo", "sg_uf", "nr", "nome", "situacao", "votos", "pct_uf",
+                    T(r["candidatos_partido"], ["nome", "cargo", "sg_uf", "nr", "situacao", "votos", "pct_uf",
                                                "rank_no_partido_uf", "municipios_com_voto", "hhi_concentracao", "reduto",
                                                "pct_votos_no_reduto", "corr_com_presidente",
                                                "votos_cand_por_voto_pres_uf", "pct_do_qe"],
@@ -784,13 +960,16 @@ def montar_html(cfg: Config, r: dict, sintetico: bool = False) -> str:
     # -------- 10. Zonas e exterior
     blocos_z = ""
     if "zonas_top" in r:
-        blocos_z = (_bloco("Zonas eleitorais com maior % (≥ 5 mil válidos)", T(r["zonas_top"], id_="ztop", busca=True))
-                    + _bloco("Maior desigualdade entre zonas do mesmo município", T(r["zonas_amplitude"], id_="zamp"))
-                    + _bloco("Zonas das capitais", T(r["zonas_capitais"], id_="zcap", busca=True, visiveis=15)))
+        cz = ["nm_municipio", "sg_uf", "nr_zona", "validos", "renan_votos", "renan_pct"]
+        blocos_z = (_bloco("Zonas eleitorais com maior % (≥ 5 mil válidos)", T(r["zonas_top"], cz, id_="ztop", busca=True))
+                    + _bloco("Maior desigualdade entre zonas do mesmo município",
+                             T(r["zonas_amplitude"], ["nm_municipio", "sg_uf", "zonas", "pct_min", "pct_max", "amplitude_pp",
+                                                      "renan_votos"], id_="zamp"))
+                    + _bloco("Zonas das capitais", T(r["zonas_capitais"], cz, id_="zcap", busca=True, visiveis=15)))
     if not blocos_z:
         blocos_z = ('<p class="nota">Votação por zona eleitoral indisponível nesta fonte: a API de divulgação do TSE '
                     'traz resultados por município. As zonas entram quando os arquivos consolidados forem publicados.</p>')
-    s_zona = _secao("zonas", "10", "Zonas eleitorais e exterior",
+    s_zona = _secao("zonas", "11", "Zonas eleitorais e exterior",
                     "Dentro das grandes cidades o voto varia muito de bairro para bairro. As zonas eleitorais são a menor "
                     "unidade territorial dos arquivos consolidados do TSE.",
                     blocos_z + _bloco("Exterior", T(r.get("exterior"), id_="ext", busca=True)))
@@ -811,7 +990,7 @@ def montar_html(cfg: Config, r: dict, sintetico: bool = False) -> str:
     corpo_o += _bloco("Correlação geográfica entre presidenciáveis", T(r["correlacao_presidenciaveis"], id_="corrp"),
                       "Correlação ponderada, entre municípios, dos percentuais de cada par de candidatos. Valores "
                       "positivos indicam que disputam o mesmo eleitorado no território.")
-    s_orig = _secao("origem", "11", "De onde vieram os votos",
+    s_orig = _secao("origem", "12", "De onde vieram os votos",
                     f"Comparação geográfica com {cfg.ano_comparacao} e com os outros presidenciáveis de {cfg.ano}.", corpo_o)
 
     # -------- Metodologia
@@ -828,7 +1007,7 @@ def montar_html(cfg: Config, r: dict, sintetico: bool = False) -> str:
         ("Esperado", "GLM binomial (logit) ponderado por válidos, com efeito fixo de UF e perfil do município."),
         ("Quociente eleitoral", "Válidos do cargo na UF ÷ vagas, com arredondamento do TSE (fração > 0,5 sobe)."),
     ]
-    s_met = _secao("metodologia", "12", "Metodologia e fontes",
+    s_met = _secao("metodologia", "13", "Metodologia e fontes",
                    "Definições usadas em todo o relatório. A planilha que acompanha este relatório traz todas as tabelas, "
                    "inclusive a base municipal completa.",
                    '<div class="glossario">' + "".join(f"<div><b>{_e(a)}</b><p>{_e(b)}</p></div>" for a, b in glossario) + "</div>")
@@ -842,7 +1021,7 @@ def montar_html(cfg: Config, r: dict, sintetico: bool = False) -> str:
     nav = "".join(f'<a href="#{i}">{t}</a>' for i, t in [("leitura", "Leitura")] * bool(s_leitura) + [
         ("destaques", "Destaques"), ("presidenciaveis", "Presidente"), ("estados", "Estados"), ("cidades", "Cidades"),
         ("distorcoes", "Distorções"), ("acertos", "Acertos e erros"), ("guarda-chuva", "Guarda-chuva"),
-        ("deputados", "Deputados × pres."), ("quociente", "Quociente"), ("candidatos", "Candidatos"),
+        ("deputados", "Deputados × pres."), ("quociente", "Quociente"), ("clausula", "Cláusula de barreira"), ("candidatos", "Candidatos"),
         ("zonas", "Zonas"), ("origem", "Origem"), ("metodologia", "Metodologia")])
     aviso = ('<div class="aviso" role="alert">DADOS SINTÉTICOS — gerados para testar o pipeline. '
              'Nenhum número desta página é resultado real.</div>') if sintetico else ""
@@ -857,12 +1036,13 @@ def montar_html(cfg: Config, r: dict, sintetico: bool = False) -> str:
   <div class="sobretitulo"><span class="urna">{pnum}</span><span>Eleições Gerais {cfg.ano}</span><span>·</span><span>{cfg.turno}º turno</span><span>·</span><span>TSE</span></div>
   <h1>Raio-X da votação do {_e(pnome)}</h1>
   <p class="lead">{_e(nome)} para Presidente e as chapas do {_e(pnome)} nos {n0((~r['base_municipal']['exterior']).sum())} municípios e no exterior: onde o voto se concentrou, onde fugiu do padrão, onde a campanha rendeu acima ou abaixo do esperado e quanto o presidenciável puxou a chapa.</p>
+<p class="como-usar">Nas tabelas, clique no título de uma coluna para ordenar do maior para o menor (clique de novo para inverter). “Restaurar ordem” volta ao padrão; ao recarregar a página tudo volta ao padrão.</p>
 </header>
 <nav class="secoes" aria-label="Seções">{nav}</nav>
 <section class="secao" id="destaques"><header><span class="num-secao">00</span><h2>Destaques</h2></header>
 <div class="kpis">{kpis}</div>
 <ul class="fatos">{fatos}</ul></section>
-{s_leitura}{s_pres}{s_uf}{s_cid}{s_dist}{s_ae}{s_gc}{s_dep}{s_qe}{s_cand}{s_zona}{s_orig}{s_met}
+{s_leitura}{s_pres}{s_uf}{s_cid}{s_dist}{s_ae}{s_gc}{s_dep}{s_qe}{s_cl}{s_cand}{s_zona}{s_orig}{s_met}
 <footer><span>Gerado em {gerado} por <code>python -m missao analisar</code>.</span>
 <span>Fonte: Tribunal Superior Eleitoral. Percentuais sobre votos válidos do cargo.</span></footer>
 </div>
@@ -904,6 +1084,11 @@ def gerar_resumo_md(cfg: Config, r: dict, sintetico: bool) -> str:
     partes.append(f"\n## Municípios onde a chapa de Dep. Federal superou {p}\n")
     partes.append(_md_tabela(r["df_maior_que_pres"], ["nm_municipio", "sg_uf", "renan_votos", "df_total", "razao_df",
                                                       "top_df_nome"], 20, rot))
+    if "clausula_resumo" in r and len(r["clausula_resumo"]):
+        partes.append("\n## Cláusula de barreira (EC 97/2017)\n")
+        partes.append(_md_tabela(r["clausula_resumo"], ["indicador", "valor"], n=20))
+        partes.append(_md_tabela(r["clausula_por_uf"], ["sg_uf", "df_total", "pct", "meta_votos", "faltam",
+                                                        "faltam_acumulado", "eleitos"], 12))
     partes.append("\n## Quociente eleitoral — Dep. Federal\n")
     partes.append(_md_tabela(r["quociente"][r["quociente"]["cargo"] == "Dep. Federal"],
                              ["sg_uf", "votos_partido", "qe", "pct_do_qe", "eleitos", "faltaram_para_qe",
@@ -977,7 +1162,7 @@ def carregar_planilha(cfg: Config, caminho: Path) -> dict[str, pd.DataFrame]:
 
 def reprocessar_planilha(cfg: Config, sintetico: bool = False) -> dict[str, Path]:
     """Refaz modelo, destaques e saídas a partir de saida/analise_completa.xlsx (sem precisar dos dados brutos)."""
-    from .metricas import fatos, modelo_esperado
+    from .metricas import clausula_barreira, fatos, modelo_esperado
     r = carregar_planilha(cfg, cfg.dir_saida / "analise_completa.xlsx")
     base = r["base_municipal"].drop(columns=["pct_esperado", "residuo_pp", "votos_acima_esperado"], errors="ignore")
     novo = modelo_esperado(cfg, base)
@@ -986,6 +1171,10 @@ def reprocessar_planilha(cfg: Config, sintetico: bool = False) -> dict[str, Path
     r["base_municipal"] = base.merge(residuos, on=["sg_uf", "cd_municipio"], how="left")
     q = r["quociente"]
     q["faltaram_proximo_qe"] = (q["votos_partido"] // q["qe"] + 1) * q["qe"] - q["votos_partido"]
+    partidos = r.get("clausula_partidos")  # só existe quando a análise rodou com os dados completos
+    r.update(clausula_barreira(cfg, base, r.get("candidatos_partido")))
+    if partidos is not None and len(partidos):
+        r["clausula_partidos"] = partidos
     r["fatos"] = fatos(cfg, base, r)
     return gerar_relatorio(cfg, r, sintetico=sintetico)
 

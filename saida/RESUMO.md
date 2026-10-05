@@ -16,6 +16,8 @@
 - **Quociente:** Dep. Federal: mais perto de eleger sem conseguir foi RJ, com 39,51% do QE; faltaram 114.986 votos. Seria preciso reter 89,73% dos votos de Renan Santos na UF (a chapa reteve 35,45%).
 - **Quociente:** Dep. Estadual/Distrital em SP: 1,73 quocientes eleitorais e 1 eleito(s); faltaram 66.362 votos para o quociente seguinte.
 - **Quociente:** Dep. Estadual/Distrital: mais perto de eleger sem conseguir foi PR, com 82,63% do QE; faltaram 19.880 votos. Seria preciso reter 64,50% dos votos de Renan Santos na UF (a chapa reteve 53,30%).
+- **Cláusula de barreira:** Não atingiu: 1,08% dos válidos para a Câmara (meta 2,50%, faltaram 1.618.350 votos), 1 UF(s) com ≥ 1,50% (exigidas 9) e 1 deputado(s) eleito(s) (exigidos 13).
+- **Cláusula de barreira:** Mesmo se a chapa federal tivesse 100% dos votos de Renan Santos, chegaria a 2,35% dos válidos, abaixo dos 2,50% exigidos.
 - **Pódio:** Renan Santos ficou em 3º lugar em 315 municípios, entre eles SÃO PAULO (SP), CURITIBA (PR), PORTO ALEGRE (RS), JOINVILLE (SC), SANTOS (SP).
 - **Concentração:** Metade dos votos de Renan Santos veio de 99 municípios; metade dos votos válidos do país vem de 222.
 - **Porte:** O % cresce com o tamanho da cidade: 1,34% nos municípios até 5k eleitores e 2,92% nos de 1M+.
@@ -161,6 +163,40 @@
 | VERA CRUZ | RS | 385 | 1.551 | 4,03× | EVANDRO AUGUSTO |
 | SEGREDO | RS | 85 | 340 | 4,00× | EVANDRO AUGUSTO |
 | IBARAMA | RS | 85 | 315 | 3,71× | EVANDRO AUGUSTO |
+
+
+## Cláusula de barreira (EC 97/2017)
+
+| Indicador | Valor |
+|---|---|
+| Situação | Não atingiu |
+| Votos válidos para Dep. Federal no país | 113.676.745 |
+| Votos do partido para Dep. Federal (nominal + legenda) | 1.223.569 |
+| % dos válidos no país | 1,08 |
+| Meta de 2,50% (votos) | 2.841.919 |
+| Faltaram para 2,50% | 1.618.350 |
+| Multiplicador necessário sobre a votação obtida | 2,32 |
+| UFs com ≥ 1,50% (exigidas: 9) | 1 |
+| Votos para levar as 9 UFs mais próximas a 1,50% | 67.060 |
+| Deputados federais eleitos (exigidos: 13) | 1 |
+| UFs com deputado eleito (exigidas: 9) | 1 |
+| Com 100% dos votos do presidenciável na chapa: % no país | 2,35 |
+| Com 100% dos votos do presidenciável na chapa: UFs com ≥ 1,50% | 23 |
+
+| UF | Dep. Fed. (votos) | % | Meta 1,5% (votos) | Faltam | Faltam (acumulado) | Eleitos |
+|---|---:|---:|---:|---:|---:|---:|
+| SP | 656.391 | 2,77% | 355.113 | 0 | 0 | 1 |
+| RR | 840 | 0,26% | 4.783 | 3.943 | 3.943 | 0 |
+| DF | 20.186 | 1,22% | 24.886 | 4.700 | 8.643 | 0 |
+| AP | 1.026 | 0,22% | 6.896 | 5.870 | 14.513 | 0 |
+| AC | 0 | 0,00% | 6.938 | 6.938 | 21.451 | 0 |
+| RO | 4.263 | 0,46% | 13.995 | 9.732 | 31.183 | 0 |
+| TO | 2.370 | 0,26% | 13.539 | 11.169 | 42.352 | 0 |
+| MS | 10.022 | 0,71% | 21.312 | 11.290 | 53.642 | 0 |
+| SE | 5.838 | 0,45% | 19.256 | 13.418 | 67.060 | 0 |
+| SC | 49.229 | 1,16% | 63.473 | 14.244 | 81.304 | 0 |
+| RS | 76.310 | 1,25% | 91.220 | 14.910 | 96.214 | 0 |
+| ES | 15.137 | 0,71% | 32.025 | 16.888 | 113.102 | 0 |
 
 
 ## Quociente eleitoral — Dep. Federal

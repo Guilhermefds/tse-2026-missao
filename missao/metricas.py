@@ -566,6 +566,102 @@ def quociente(cfg: Config, t: dict, base: pd.DataFrame) -> pd.DataFrame:
     return df.sort_values(["cargo", "pct_do_qe"], ascending=[True, False]).reset_index(drop=True)
 
 
+# --------------------------------------------------------------------------- cláusula de barreira
+
+def _agremiacao(df: pd.DataFrame) -> pd.Series:
+    """Federação conta como uma só agremiação na cláusula; partido isolado conta por si."""
+    fed = df["sg_federacao"].fillna("").astype(str)
+    return fed.where(fed != "", df["sg_partido"].fillna("").astype(str))
+
+
+def clausula_barreira(cfg: Config, base: pd.DataFrame, cand_partido: pd.DataFrame | None,
+                      t: dict | None = None) -> dict[str, pd.DataFrame]:
+    """Cláusula de desempenho (EC 97/2017) na eleição para a Câmara: situação do partido e, com os dados
+    completos (`t`), de todos os partidos e federações.
+
+    Critério (a): ≥ pct_nacional dos válidos para Dep. Federal no país e ≥ pct_uf em ≥ ufs_minimo UFs.
+    Critério (b): ≥ deputados eleitos em ≥ ufs_minimo UFs.
+    """
+    c = cfg.clausula
+    pct_nac, pct_uf, n_ufs, n_dep = c["pct_nacional"], c["pct_uf"], int(c["ufs_minimo"]), int(c["deputados"])
+    b = base[~base["exterior"]]
+    uf = b.groupby("sg_uf")[["validos_df", "df_total", "renan_votos"]].sum()
+    uf["pct"] = 100 * div(uf["df_total"], uf["validos_df"])
+    uf["meta_votos"] = np.ceil(pct_uf / 100 * uf["validos_df"]).astype("int64")
+    uf["faltam"] = (uf["meta_votos"] - uf["df_total"]).clip(lower=0)
+    uf["atinge"] = uf["pct"] >= pct_uf
+    uf["pct_se_100_renan"] = 100 * div(uf["renan_votos"], uf["validos_df"])
+    uf["conversao_necessaria_pct"] = 100 * div(uf["meta_votos"], uf["renan_votos"])
+    eleitos = pd.Series(0, index=uf.index)
+    if cand_partido is not None and len(cand_partido):
+        el = cand_partido[(cand_partido["cargo"] == "Deputado Federal")
+                          & cand_partido["situacao"].fillna("").astype(str).str.upper().str.startswith("ELEITO")]
+        eleitos = el.groupby("sg_uf").size().reindex(uf.index).fillna(0).astype(int)
+    uf["eleitos"] = eleitos
+    uf = uf.sort_values(["atinge", "faltam"], ascending=[False, True]).reset_index()
+    uf["faltam_acumulado"] = uf["faltam"].cumsum()
+
+    validos, votos = int(uf["validos_df"].sum()), int(uf["df_total"].sum())
+    meta_nac = math.ceil(pct_nac / 100 * validos)
+    n_atinge, n_eleitos = int(uf["atinge"].sum()), int(uf["eleitos"].sum())
+    ufs_eleitos = int((uf["eleitos"] > 0).sum())
+    crit_a = votos >= meta_nac and n_atinge >= n_ufs
+    crit_b = n_eleitos >= n_dep and ufs_eleitos >= n_ufs
+    pct_100 = 100 * uf["renan_votos"].sum() / validos if validos else float("nan")
+    resumo = pd.DataFrame([
+        ("Situação", "Atingiu" if (crit_a or crit_b) else "Não atingiu"),
+        ("Votos válidos para Dep. Federal no país", validos),
+        ("Votos do partido para Dep. Federal (nominal + legenda)", votos),
+        ("% dos válidos no país", 100 * votos / validos if validos else float("nan")),
+        (f"Meta de {n2(pct_nac)}% (votos)", meta_nac),
+        (f"Faltaram para {n2(pct_nac)}%", max(0, meta_nac - votos)),
+        ("Multiplicador necessário sobre a votação obtida", meta_nac / votos if votos else float("nan")),
+        (f"UFs com ≥ {n2(pct_uf)}% (exigidas: {n_ufs})", n_atinge),
+        (f"Votos para levar as {n_ufs} UFs mais próximas a {n2(pct_uf)}%", int(uf["faltam"].head(n_ufs).sum())),
+        (f"Deputados federais eleitos (exigidos: {n_dep})", n_eleitos),
+        (f"UFs com deputado eleito (exigidas: {n_ufs})", ufs_eleitos),
+        ("Com 100% dos votos do presidenciável na chapa: % no país", pct_100),
+        (f"Com 100% dos votos do presidenciável na chapa: UFs com ≥ {n2(pct_uf)}%",
+         int((uf["pct_se_100_renan"] >= pct_uf).sum())),
+    ], columns=["indicador", "valor"], dtype=object)
+    saida = {"clausula_resumo": resumo, "clausula_por_uf": uf}
+
+    if t is not None and "partido_mun" in t and "cand_uf" in t:
+        pm = t["partido_mun"]
+        pm = pm[pm["cd_cargo"] == DEP_FEDERAL].copy()
+        pm["agremiacao"] = _agremiacao(pm)
+        val_uf = uf.set_index("sg_uf")["validos_df"]
+        por_uf = pm.groupby(["agremiacao", "sg_uf"])["votos_total"].sum().reset_index()
+        por_uf["pct"] = 100 * div(por_uf["votos_total"], por_uf["sg_uf"].map(val_uf))
+        cu = t["cand_uf"]
+        cu = cu[(cu["cd_cargo"] == DEP_FEDERAL) & cu["situacao"].fillna("").str.upper().str.startswith("ELEITO")].copy()
+        cu["agremiacao"] = _agremiacao(cu)
+        g = pm.groupby("agremiacao")
+        partidos = pd.DataFrame({
+            "partidos": g["sg_partido"].agg(lambda s: " / ".join(sorted(set(s)))),
+            "votos": g["votos_total"].sum(),
+            "ufs_com_1_5pct": por_uf[por_uf["pct"] >= pct_uf].groupby("agremiacao").size(),
+            "eleitos": cu.groupby("agremiacao").size(),
+            "ufs_com_eleito": cu.groupby("agremiacao")["sg_uf"].nunique(),
+        }).fillna(0)
+        for col in ("ufs_com_1_5pct", "eleitos", "ufs_com_eleito"):
+            partidos[col] = partidos[col].astype(int)
+        partidos["pct_nacional"] = 100 * partidos["votos"] / validos
+        partidos["criterio_votos"] = (partidos["pct_nacional"] >= pct_nac) & (partidos["ufs_com_1_5pct"] >= n_ufs)
+        partidos["criterio_eleitos"] = (partidos["eleitos"] >= n_dep) & (partidos["ufs_com_eleito"] >= n_ufs)
+        partidos["atingiu"] = partidos["criterio_votos"] | partidos["criterio_eleitos"]
+        partidos = partidos.sort_values("pct_nacional", ascending=False).reset_index()
+        partidos["destaque"] = partidos["partidos"].str.split(" / ").apply(lambda ps: cfg.partido_sigla in
+                                                                          [sem_acento_simples(p) for p in ps])
+        saida["clausula_partidos"] = partidos
+    return saida
+
+
+def sem_acento_simples(texto: str) -> str:
+    import unicodedata
+    return unicodedata.normalize("NFKD", str(texto)).encode("ascii", "ignore").decode().upper()
+
+
 # --------------------------------------------------------------------------- guarda-chuva
 
 def guarda_chuva_partidos(cfg: Config, t: dict, base: pd.DataFrame, nomes_pres: dict) -> pd.DataFrame:
@@ -913,6 +1009,20 @@ def fatos(cfg: Config, base: pd.DataFrame, r: dict) -> pd.DataFrame:
             f.append(("Quociente", f"{cargo}: mais perto de eleger sem conseguir foi {x.sg_uf}, com {pc(x.pct_do_qe)} do "
                       f"QE; faltaram {fmt(x.faltaram_para_qe)} votos. Seria preciso reter {pc(x.conversao_necessaria_pct)} "
                       f"dos votos de {nome} na UF (a chapa reteve {pc(x.conversao_obtida_pct)})."))
+    cr = r.get("clausula_resumo")
+    if cr is not None and len(cr):
+        v = dict(zip(cr["indicador"], cr["valor"]))
+        c = cfg.clausula
+        pct = next(val for k, val in v.items() if k.startswith("% dos válidos"))
+        falta = next(val for k, val in v.items() if k.startswith("Faltaram para"))
+        ufs = next(val for k, val in v.items() if k.startswith("UFs com ≥"))
+        dep = next(val for k, val in v.items() if k.startswith("Deputados federais eleitos"))
+        f.append(("Cláusula de barreira", f"{v['Situação']}: {pc(pct)} dos válidos para a Câmara (meta {n2(c['pct_nacional'])}%, "
+                  f"faltaram {fmt(falta)} votos), {ufs} UF(s) com ≥ {n2(c['pct_uf'])}% (exigidas {c['ufs_minimo']}) e "
+                  f"{dep} deputado(s) eleito(s) (exigidos {c['deputados']})."))
+        p100 = next(val for k, val in v.items() if k.endswith("% no país"))
+        f.append(("Cláusula de barreira", f"Mesmo se a chapa federal tivesse 100% dos votos de {nome}, chegaria a "
+                  f"{pc(p100)} dos válidos, abaixo dos {n2(c['pct_nacional'])}% exigidos."))
     pos3 = b[b["renan_pos"] == 3]
     if len(pos3):
         ex = ", ".join(f"{m} ({u})" for m, u in pos3.nlargest(5, "aptos")[["nm_municipio", "sg_uf"]].itertuples(index=False))
@@ -987,6 +1097,7 @@ def analisar(cfg: Config, t: dict) -> dict[str, pd.DataFrame]:
     r["guarda_chuva_resumo"] = guarda_chuva_resumo(base)
     r.update(deputados_maior_que_presidente(cfg, t, base))
     r["candidatos_partido"] = candidatos_partido(cfg, t, base, r["quociente"])
+    r.update(clausula_barreira(cfg, base, r["candidatos_partido"], t))
     r.update(zonas(cfg, t, base))
     r["exterior"] = exterior(base)
     r["origem_votos"] = origem_votos(cfg, base)

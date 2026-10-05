@@ -51,6 +51,8 @@ class Config:
     presidente_nome: str = "Renan Santos"
     referencia_2022: dict = field(default_factory=dict)
     min_eleitores_ranking: int = 5000
+    clausula: dict = field(default_factory=lambda: {"pct_nacional": 2.5, "pct_uf": 1.5, "ufs_minimo": 9,
+                                                    "deputados": 13})
     faixas_eleitorado: list = field(default_factory=lambda: [0, 5000, 10000, 20000, 50000, 100000,
                                                              200000, 500000, 1000000, 10**8])
     url_cdn: str = "https://cdn.tse.jus.br/estatistica/sead/odsele"
@@ -81,6 +83,7 @@ def carregar_config(caminho: Path | str | None = None, **sobrescrever) -> Config
         presidente_nome=bruto.get("presidente", {}).get("nome_exibicao", "Renan Santos"),
         referencia_2022={int(k): v for k, v in (bruto.get("referencia_2022") or {}).items()},
         min_eleitores_ranking=int(bruto.get("min_eleitores_ranking", 5000)),
+        clausula={**Config().clausula, **(bruto.get("clausula_barreira") or {})},
         faixas_eleitorado=bruto.get("faixas_eleitorado") or Config().faixas_eleitorado,
         url_cdn=bruto.get("fontes", {}).get("cdn", Config.url_cdn),
         url_divulgacao=bruto.get("fontes", {}).get("divulgacao", Config.url_divulgacao),

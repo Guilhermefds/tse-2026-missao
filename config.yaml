@@ -25,6 +25,17 @@ referencia_2022:
 min_eleitores_ranking: 5000
 faixas_eleitorado: [0, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000, 100000000]
 
+# Cláusula de barreira (EC 97/2017, art. 3º) para a eleição de 2026: acesso ao Fundo Partidário e à
+# propaganda gratuita em 2027–2030. Atinge quem cumprir UM dos critérios na eleição para a Câmara:
+#   (a) % dos válidos no país, distribuídos em ≥ ufs_minimo UFs com ≥ pct_uf em cada; ou
+#   (b) eleger ≥ deputados, distribuídos em ≥ ufs_minimo UFs.
+# Em 2030 sobe para 3% / 2% por UF / 15 deputados.
+clausula_barreira:
+  pct_nacional: 2.5
+  pct_uf: 1.5
+  ufs_minimo: 9
+  deputados: 13
+
 # Fontes
 fontes:
   cdn: https://cdn.tse.jus.br/estatistica/sead/odsele
