@@ -1,0 +1,91 @@
+
+{ "ele" : "6259", "cdabr" : "br", "nmabr" : "BRASIL", "t" : "1", "f" : "o", "cdcar" : "3", "nmcar" : "Governador", "dg" : "05/10/2026", "hg" : "00:51:48", "idg" : "2656244", "abr" : [ 
+{ "dt" : "04/10/2026", "ht" : "21:07:20", "tpabr" : "uf", "cdabr" : "ac", "nmabr" : "ACRE", "tvap" : "439647", "scv" : "n", "esae" : "n", "mnae" : [  ], "cand" : [ 
+{ "n" : "11", "sqcand" : "10002544107", "nm" : "MAILZA ASSIS CAMELI", "nmu" : "MAILZA ASSIS", "sgp" : "PP", "com" : "PDT / MDB / PL / DEMOCRATA / PP / UNIÃO", "vap" : "218760", "seq" : "1", "vs" : [ 
+{ "tp" : "v", "sqcand" : "10002544108", "nm" : "JESSICA ROJAS SALES", "nmu" : "JESSICA SALES", "sgp" : "MDB" } ] }, 
+{ "n" : "10", "sqcand" : "10002532492", "nm" : "ALAN RICK MIRANDA", "nmu" : "ALAN RICK", "sgp" : "REPUBLICANOS", "com" : "REPUBLICANOS / NOVO / PSD / AVANTE", "vap" : "141859", "seq" : "2", "vs" : [ 
+{ "tp" : "v", "sqcand" : "10002532493", "nm" : "FABIO RICARDO LEITE", "nmu" : "RICARDO LEITE", "sgp" : "REPUBLICANOS" } ] } ] }, 
+{ "dt" : "04/10/2026", "ht" : "22:54:29", "tpabr" : "uf", "cdabr" : "al", "nmabr" : "ALAGOAS", "tvap" : "1709614", "scv" : "n", "esae" : "n", "mnae" : [  ], "cand" : [ 
+{ "n" : "45", "sqcand" : "20002553350", "nm" : "JOÃO HENRIQUE HOLANDA CALDAS", "nmu" : "JHC", "sgp" : "PSDB", "com" : "PDT / PL / DC / CIDADANIA / PSDB / PRD / SOLIDARIEDADE / PP / UNIÃO", "vap" : "892484", "seq" : "1", "vs" : [ 
+{ "tp" : "v", "sqcand" : "20002553351", "nm" : "CELIA MARIA BARBOSA ROCHA", "nmu" : "CÉLIA ROCHA", "sgp" : "PSDB" } ] } ] }, 
+{ "dt" : "04/10/2026", "ht" : "21:03:59", "tpabr" : "uf", "cdabr" : "ap", "nmabr" : "AMAPÁ", "tvap" : "448747", "scv" : "n", "esae" : "n", "mnae" : [  ], "cand" : [ 
+{ "n" : "55", "sqcand" : "30002530014", "nm" : "ANTONIO PAULO DE OLIVEIRA FURLAN", "nmu" : "DR. FURLAN", "sgp" : "PSD", "com" : "NOVO / PSD / PODE / PL", "vap" : "281595", "seq" : "1", "vs" : [ 
+{ "tp" : "v", "sqcand" : "30002530015", "nm" : "LUCIANA ARAUJO GOES GURGEL", "nmu" : "LUCIANA GURGEL", "sgp" : "PL" } ] } ] }, 
+{ "dt" : "", "ht" : "", "tpabr" : "uf", "cdabr" : "am", "nmabr" : "AMAZONAS", "tvap" : "2071653", "scv" : "n", "esae" : "n", "mnae" : [  ], "cand" : [  ] }, 
+{ "dt" : "05/10/2026", "ht" : "00:50:30", "tpabr" : "uf", "cdabr" : "ba", "nmabr" : "BAHIA", "tvap" : "8291090", "scv" : "n", "esae" : "n", "mnae" : [  ], "cand" : [ 
+{ "n" : "13", "sqcand" : "50002536314", "nm" : "JERONIMO RODRIGUES SOUZA", "nmu" : "JERÔNIMO RODRIGUES", "sgp" : "PT", "com" : "PDT / MDB / PSB / PSD / AVANTE / PCDOB / PT / PV", "vap" : "4626509", "seq" : "1", "vs" : [ 
+{ "tp" : "v", "sqcand" : "50002536315", "nm" : "GERALDO ALVES FERREIRA JUNIOR", "nmu" : "GERALDO JÚNIOR", "sgp" : "MDB" } ] } ] }, 
+{ "dt" : "04/10/2026", "ht" : "23:10:27", "tpabr" : "uf", "cdabr" : "ce", "nmabr" : "CEARÁ", "tvap" : "5406095", "scv" : "n", "esae" : "n", "mnae" : [  ], "cand" : [ 
+{ "n" : "13", "sqcand" : "60002543969", "nm" : "ELMANO DE FREITAS DA COSTA", "nmu" : "ELMANO DE FREITAS", "sgp" : "PT", "com" : "PSB / PDT / PODE / MOBILIZA / PCDOB / PT / PV / REPUBLICANOS / PSD / MDB / PRD / SOLIDARIEDADE / PSOL / REDE", "vap" : "2875573", "seq" : "1", "vs" : [ 
+{ "tp" : "v", "sqcand" : "60002543970", "nm" : "GABRIELLA PEQUENO COSTA GOMES DE AGUIAR", "nmu" : "GABRIELLA AGUIAR", "sgp" : "PSD" } ] } ] }, 
+{ "dt" : "04/10/2026", "ht" : "20:22:29", "tpabr" : "uf", "cdabr" : "df", "nmabr" : "DISTRITO FEDERAL", "tvap" : "1661693", "scv" : "n", "esae" : "n", "mnae" : [  ], "cand" : [ 
+{ "n" : "11", "sqcand" : "70002553055", "nm" : "CELINA LEAO HIZIM FERREIRA", "nmu" : "CELINA LEÃO", "sgp" : "PP", "com" : "REPUBLICANOS / MDB / PODE / PL / DC / MOBILIZA / DEMOCRATA / PRD / SOLIDARIEDADE / PP / UNIÃO", "vap" : "825530", "seq" : "1", "vs" : [ 
+{ "tp" : "v", "sqcand" : "70002553056", "nm" : "GUSTAVO DO VALE ROCHA", "nmu" : "GUSTAVO ROCHA", "sgp" : "REPUBLICANOS" } ] }, 
+{ "n" : "13", "sqcand" : "70002552496", "nm" : "LEANDRO ANTÔNIO GRASS PEIXOTO", "nmu" : "LEANDRO GRASS", "sgp" : "PT", "com" : "PDT / PCDOB / PT / PV / PSOL / REDE", "vap" : "569930", "seq" : "2", "vs" : [ 
+{ "tp" : "v", "sqcand" : "70002552497", "nm" : "MARIA DAS DORES GOMES DA SILVA SANTOS", "nmu" : "DORA GOMES", "sgp" : "PV" } ] } ] }, 
+{ "dt" : "04/10/2026", "ht" : "20:56:14", "tpabr" : "uf", "cdabr" : "es", "nmabr" : "ESPÍRITO SANTO", "tvap" : "2112171", "scv" : "n", "esae" : "n", "mnae" : [  ], "cand" : [ 
+{ "n" : "10", "sqcand" : "80002552682", "nm" : "LORENZO SILVA DE PAZOLINI", "nmu" : "LORENZO PAZOLINI", "sgp" : "REPUBLICANOS", "com" : "REPUBLICANOS / PL / DEMOCRATA", "vap" : "1048633", "seq" : "1", "vs" : [ 
+{ "tp" : "v", "sqcand" : "80002553263", "nm" : "ELIANE LEAL VIEIRA", "nmu" : "ELIANE LEAL", "sgp" : "PL" } ] }, 
+{ "n" : "15", "sqcand" : "80002552172", "nm" : "RICARDO DE REZENDE FERRAÇO", "nmu" : "RICARDO FERRAÇO", "sgp" : "MDB", "com" : "PODE / MDB / AGIR / PSB / PDT / CIDADANIA / PSDB / PP / UNIÃO", "vap" : "719397", "seq" : "2", "vs" : [ 
+{ "tp" : "v", "sqcand" : "80002552171", "nm" : "CAMILLO AUGUSTO MARCHEZI DE OLIVEIRA NEVES", "nmu" : "CAMILLO NEVES", "sgp" : "PP" } ] } ] }, 
+{ "dt" : "04/10/2026", "ht" : "22:38:24", "tpabr" : "uf", "cdabr" : "go", "nmabr" : "GOIÁS", "tvap" : "3630576", "scv" : "n", "esae" : "n", "mnae" : [  ], "cand" : [ 
+{ "n" : "15", "sqcand" : "90002540993", "nm" : "DANIEL ELIAS CARVALHO VILELA", "nmu" : "DANIEL VILELA", "sgp" : "MDB", "com" : "REPUBLICANOS / MDB / PODE / MOBILIZA / DEMOCRATA / AGIR / PSD / AVANTE / PRD / SOLIDARIEDADE / PP / UNIÃO", "vap" : "2148218", "seq" : "1", "vs" : [ 
+{ "tp" : "v", "sqcand" : "90002540994", "nm" : "LUIZ CARLOS DO CARMO", "nmu" : "LUIZ DO CARMO", "sgp" : "PSD" } ] } ] }, 
+{ "dt" : "", "ht" : "", "tpabr" : "uf", "cdabr" : "ma", "nmabr" : "MARANHÃO", "tvap" : "3894196", "scv" : "n", "esae" : "n", "mnae" : [  ], "cand" : [  ] }, 
+{ "dt" : "04/10/2026", "ht" : "21:31:48", "tpabr" : "uf", "cdabr" : "mt", "nmabr" : "MATO GROSSO", "tvap" : "1856293", "scv" : "n", "esae" : "n", "mnae" : [  ], "cand" : [ 
+{ "n" : "10", "sqcand" : "110002551480", "nm" : "OTAVIANO OLAVO PIVETTA", "nmu" : "OTAVIANO PIVETTA", "sgp" : "REPUBLICANOS", "com" : "CIDADANIA / PSDB / REPUBLICANOS / PP / UNIÃO / PODE", "vap" : "1128099", "seq" : "1", "vs" : [ 
+{ "tp" : "v", "sqcand" : "110002551479", "nm" : "GISELA SIMONA VIANA DE SOUZA", "nmu" : "GISELA SIMONA", "sgp" : "UNIÃO" } ] } ] }, 
+{ "dt" : "04/10/2026", "ht" : "21:05:51", "tpabr" : "uf", "cdabr" : "ms", "nmabr" : "MATO GROSSO DO SUL", "tvap" : "1363298", "scv" : "n", "esae" : "n", "mnae" : [  ], "cand" : [ 
+{ "n" : "11", "sqcand" : "120002536582", "nm" : "EDUARDO CORREA RIEDEL", "nmu" : "EDUARDO RIEDEL", "sgp" : "PP", "com" : "PP / UNIÃO / PL / CIDADANIA / PSDB / PODE / AVANTE / REPUBLICANOS / PSD / MDB", "vap" : "914323", "seq" : "1", "vs" : [ 
+{ "tp" : "v", "sqcand" : "120002536581", "nm" : "JOSE CARLOS BARBOSA", "nmu" : "BARBOSINHA", "sgp" : "REPUBLICANOS" } ] } ] }, 
+{ "dt" : "05/10/2026", "ht" : "00:50:04", "tpabr" : "uf", "cdabr" : "mg", "nmabr" : "MINAS GERAIS", "tvap" : "11411835", "scv" : "n", "esae" : "n", "mnae" : [  ], "cand" : [ 
+{ "n" : "10", "sqcand" : "130002552296", "nm" : "CLEITON GONTIJO DE AZEVEDO", "nmu" : "CLEITINHO AZEVEDO", "sgp" : "REPUBLICANOS", "com" : "REPUBLICANOS / PODE", "vap" : "6321590", "seq" : "1", "vs" : [ 
+{ "tp" : "v", "sqcand" : "130002552295", "nm" : "LUIS EDUARDO FALCAO FERREIRA", "nmu" : "FALCÃO", "sgp" : "REPUBLICANOS" } ] } ] }, 
+{ "dt" : "04/10/2026", "ht" : "22:43:11", "tpabr" : "uf", "cdabr" : "pr", "nmabr" : "PARANÁ", "tvap" : "6243799", "scv" : "n", "esae" : "n", "mnae" : [  ], "cand" : [ 
+{ "n" : "22", "sqcand" : "160002540833", "nm" : "SERGIO FERNANDO MORO", "nmu" : "SERGIO MORO", "sgp" : "PL", "com" : "PODE / PL / NOVO", "vap" : "3127911", "seq" : "1", "vs" : [ 
+{ "tp" : "v", "sqcand" : "160002540834", "nm" : "EDSON JOSE DE VASCONCELOS", "nmu" : "EDSON VASCONCELOS", "sgp" : "PL" } ] } ] }, 
+{ "dt" : "04/10/2026", "ht" : "23:21:51", "tpabr" : "uf", "cdabr" : "pb", "nmabr" : "PARAÍBA", "tvap" : "2287212", "scv" : "n", "esae" : "n", "mnae" : [  ], "cand" : [ 
+{ "n" : "11", "sqcand" : "150002551789", "nm" : "LUCAS RIBEIRO NOVAIS DE ARAUJO", "nmu" : "LUCAS RIBEIRO", "sgp" : "PP", "com" : "PODE / MOBILIZA / PCDOB / PT / PV / AGIR / PRD / SOLIDARIEDADE / PP / UNIÃO / REPUBLICANOS / PSB", "vap" : "1470252", "seq" : "1", "vs" : [ 
+{ "tp" : "v", "sqcand" : "150002551788", "nm" : "ANA LIGIA COSTA FELICIANO", "nmu" : "LIGIA FELICIANO", "sgp" : "UNIÃO" } ] } ] }, 
+{ "dt" : "04/10/2026", "ht" : "23:55:28", "tpabr" : "uf", "cdabr" : "pa", "nmabr" : "PARÁ", "tvap" : "4566828", "scv" : "n", "esae" : "n", "mnae" : [  ], "cand" : [ 
+{ "n" : "20", "sqcand" : "140002549930", "nm" : "DANIEL BARBOSA SANTOS", "nmu" : "DR. DANIEL", "sgp" : "PODE", "com" : "PODE / PL / DC / NOVO / PRD / SOLIDARIEDADE", "vap" : "2345721", "seq" : "1", "vs" : [ 
+{ "tp" : "v", "sqcand" : "140002549931", "nm" : "ELLAYNE CRISTINA GURGEL DE ALMEIDA", "nmu" : "ELLAYNE D ALMEIDA", "sgp" : "PL" } ] } ] }, 
+{ "dt" : "04/10/2026", "ht" : "22:54:57", "tpabr" : "uf", "cdabr" : "pe", "nmabr" : "PERNAMBUCO", "tvap" : "5266852", "scv" : "n", "esae" : "n", "mnae" : [  ], "cand" : [ 
+{ "n" : "55", "sqcand" : "170002537227", "nm" : "RAQUEL TEIXEIRA LYRA LUCENA", "nmu" : "RAQUEL LYRA", "sgp" : "PSD", "com" : "PODE / PSD / AVANTE / PP / UNIÃO", "vap" : "2805438", "seq" : "1", "vs" : [ 
+{ "tp" : "v", "sqcand" : "170002537228", "nm" : "PRISCILA KRAUSE BRANCO", "nmu" : "PRISCILA KRAUSE", "sgp" : "PSD" } ] } ] }, 
+{ "dt" : "04/10/2026", "ht" : "23:36:35", "tpabr" : "uf", "cdabr" : "pi", "nmabr" : "PIAUÍ", "tvap" : "2026275", "scv" : "n", "esae" : "n", "mnae" : [  ], "cand" : [ 
+{ "n" : "13", "sqcand" : "180002532987", "nm" : "RAFAEL TAJRA FONTELES", "nmu" : "RAFAEL FONTELES", "sgp" : "PT", "com" : "REPUBLICANOS / PDT / MDB / PSD / PCDOB / PT / PV", "vap" : "1436697", "seq" : "1", "vs" : [ 
+{ "tp" : "v", "sqcand" : "180002532986", "nm" : "FRANCISCO WASHINGTON BANDEIRA SANTOS FILHO", "nmu" : "WASHINGTON BANDEIRA", "sgp" : "PT" } ] } ] }, 
+{ "dt" : "04/10/2026", "ht" : "22:19:52", "tpabr" : "uf", "cdabr" : "rj", "nmabr" : "RIO DE JANEIRO", "tvap" : "8669038", "scv" : "n", "esae" : "n", "mnae" : [  ], "cand" : [ 
+{ "n" : "22", "sqcand" : "190002542887", "nm" : "DOUGLAS RUAS DOS SANTOS", "nmu" : "DOUGLAS RUAS", "sgp" : "PL", "com" : "PL / MOBILIZA / AGIR / AVANTE", "vap" : "4271199", "seq" : "1", "vs" : [ 
+{ "tp" : "v", "sqcand" : "190002542886", "nm" : "FERNANDA ANCHIETA LOUBACK", "nmu" : "FERNANDA LOUBACK", "sgp" : "PL" } ] }, 
+{ "n" : "55", "sqcand" : "190002543380", "nm" : "EDUARDO DA COSTA PAES", "nmu" : "EDUARDO PAES", "sgp" : "PSD", "com" : "PDT / MDB / DC / PSB / PSD / CIDADANIA / PSDB / PCDOB / PT / PV / PRD / SOLIDARIEDADE", "vap" : "3706984", "seq" : "2", "vs" : [ 
+{ "tp" : "v", "sqcand" : "190002543379", "nm" : "JEANNIE MAYR REIS DE OLIVEIRA", "nmu" : "JANE REIS", "sgp" : "MDB" } ] } ] }, 
+{ "dt" : "04/10/2026", "ht" : "23:01:26", "tpabr" : "uf", "cdabr" : "rn", "nmabr" : "RIO GRANDE DO NORTE", "tvap" : "1988819", "scv" : "n", "esae" : "n", "mnae" : [  ], "cand" : [ 
+{ "n" : "44", "sqcand" : "200002535255", "nm" : "ALLYSON LEANDRO BEZERRA SILVA", "nmu" : "ALLYSON", "sgp" : "UNIÃO", "com" : "REPUBLICANOS / MDB / PSD / AVANTE / PRD / SOLIDARIEDADE / PP / UNIÃO", "vap" : "733809", "seq" : "1", "vs" : [ 
+{ "tp" : "v", "sqcand" : "200002535256", "nm" : "HERMANO DA COSTA MORAES", "nmu" : "HERMANO", "sgp" : "MDB" } ] }, 
+{ "n" : "13", "sqcand" : "200002534001", "nm" : "CARLOS EDUARDO XAVIER", "nmu" : "CADU DE LULA", "sgp" : "PT", "com" : "PDT / PSB / PCDOB / PT / PV", "vap" : "718300", "seq" : "2", "vs" : [ 
+{ "tp" : "v", "sqcand" : "200002534002", "nm" : "LARISSA DANIELA ESCOSSIA ROSADO", "nmu" : "LARISSA", "sgp" : "PSB" } ] } ] }, 
+{ "dt" : "04/10/2026", "ht" : "21:11:34", "tpabr" : "uf", "cdabr" : "rs", "nmabr" : "RIO GRANDE DO SUL", "tvap" : "6057443", "scv" : "n", "esae" : "n", "mnae" : [  ], "cand" : [ 
+{ "n" : "22", "sqcand" : "210002547857", "nm" : "LUCIANO LORENZINI ZUCCO", "nmu" : "ZUCCO", "sgp" : "PL", "com" : "REPUBLICANOS / PODE / PL / DC / NOVO / PP / UNIÃO", "vap" : "3516048", "seq" : "1", "vs" : [ 
+{ "tp" : "v", "sqcand" : "210002547858", "nm" : "SILVANA MARIA FRANCISCATTO COVATTI", "nmu" : "SILVANA COVATTI", "sgp" : "PP" } ] } ] }, 
+{ "dt" : "04/10/2026", "ht" : "20:50:40", "tpabr" : "uf", "cdabr" : "ro", "nmabr" : "RONDÔNIA", "tvap" : "945058", "scv" : "n", "esae" : "n", "mnae" : [  ], "cand" : [ 
+{ "n" : "22", "sqcand" : "220002541939", "nm" : "MARCOS ROGERIO DA SILVA BRITO", "nmu" : "MARCOS ROGÉRIO", "sgp" : "PL", "com" : "PODE / PL / DC / NOVO / MOBILIZA", "vap" : "537370", "seq" : "1", "vs" : [ 
+{ "tp" : "v", "sqcand" : "220002541940", "nm" : "RODRIGO CAMARGO RIBEIRO PINHO", "nmu" : "DELEGADO CAMARGO", "sgp" : "PODE" } ] } ] }, 
+{ "dt" : "04/10/2026", "ht" : "21:05:49", "tpabr" : "uf", "cdabr" : "rr", "nmabr" : "RORAIMA", "tvap" : "319413", "scv" : "n", "esae" : "n", "mnae" : [  ], "cand" : [ 
+{ "n" : "22", "sqcand" : "230002549223", "nm" : "ARTHUR HENRIQUE BRANDAO MACHADO", "nmu" : "ARTHUR HENRIQUE", "sgp" : "PL", "com" : "PL / NOVO", "vap" : "220809", "seq" : "1", "vs" : [ 
+{ "tp" : "v", "sqcand" : "230002549222", "nm" : "HAROLDO ALVES CAMPOS", "nmu" : "HAROLDO CATHEDRAL", "sgp" : "NOVO" } ] } ] }, 
+{ "dt" : "04/10/2026", "ht" : "21:55:27", "tpabr" : "uf", "cdabr" : "sc", "nmabr" : "SANTA CATARINA", "tvap" : "4265641", "scv" : "n", "esae" : "n", "mnae" : [  ], "cand" : [ 
+{ "n" : "22", "sqcand" : "240002537073", "nm" : "JORGINHO DOS SANTOS MELLO", "nmu" : "JORGINHO MELLO", "sgp" : "PL", "com" : "AVANTE / AGIR / DC / CIDADANIA / PSDB / NOVO / REPUBLICANOS / PODE / PL", "vap" : "2942386", "seq" : "1", "vs" : [ 
+{ "tp" : "v", "sqcand" : "240002537074", "nm" : "ADRIANO BORNSCHEIN SILVA", "nmu" : "ADRIANO SILVA", "sgp" : "NOVO" } ] } ] }, 
+{ "dt" : "04/10/2026", "ht" : "22:07:20", "tpabr" : "uf", "cdabr" : "se", "nmabr" : "SERGIPE", "tvap" : "1260203", "scv" : "n", "esae" : "n", "mnae" : [  ], "cand" : [ 
+{ "n" : "55", "sqcand" : "260002542491", "nm" : "FABIO CRUZ MITIDIERI", "nmu" : "FÁBIO", "sgp" : "PSD", "com" : "PSB / PSD / PP / UNIÃO / PCDOB / PT / PV", "vap" : "727291", "seq" : "1", "vs" : [ 
+{ "tp" : "v", "sqcand" : "260002542492", "nm" : "JEFERSON LUIZ DE ANDRADE", "nmu" : "JEFERSON ANDRADE", "sgp" : "PSD" } ] } ] }, 
+{ "dt" : "04/10/2026", "ht" : "22:56:59", "tpabr" : "uf", "cdabr" : "sp", "nmabr" : "SÃO PAULO", "tvap" : "23152883", "scv" : "n", "esae" : "n", "mnae" : [  ], "cand" : [ 
+{ "n" : "10", "sqcand" : "250002541303", "nm" : "TARCISIO GOMES DE FREITAS", "nmu" : "TARCÍSIO", "sgp" : "REPUBLICANOS", "com" : "REPUBLICANOS / PL / MDB / DEMOCRATA / AVANTE / PSD / PRD / SOLIDARIEDADE / PP / UNIÃO", "vap" : "14491874", "seq" : "1", "vs" : [ 
+{ "tp" : "v", "sqcand" : "250002541302", "nm" : "FELICIO RAMUTH", "nmu" : "FELICIO RAMUTH", "sgp" : "MDB" } ] } ] }, 
+{ "dt" : "04/10/2026", "ht" : "20:59:57", "tpabr" : "uf", "cdabr" : "to", "nmabr" : "TOCANTINS", "tvap" : "849656", "scv" : "n", "esae" : "n", "mnae" : [  ], "cand" : [ 
+{ "n" : "44", "sqcand" : "270002544599", "nm" : "MARIA AUXILIADORA SEABRA REZENDE", "nmu" : "PROFESSORA DORINHA", "sgp" : "UNIÃO", "com" : "REPUBLICANOS / PODE / AVANTE / PL / PRD / SOLIDARIEDADE / PP / UNIÃO", "vap" : "386260", "seq" : "1", "vs" : [ 
+{ "tp" : "v", "sqcand" : "270002544600", "nm" : "ATOS GOMES DE ARAÚJO", "nmu" : "ATOS GOMES", "sgp" : "REPUBLICANOS" } ] }, 
+{ "n" : "45", "sqcand" : "270002544544", "nm" : "VICENTE ALVES DE OLIVEIRA JÚNIOR", "nmu" : "VICENTINHO JÚNIOR", "sgp" : "PSDB", "com" : "MDB / CIDADANIA / PSDB", "vap" : "372848", "seq" : "2", "vs" : [ 
+{ "tp" : "v", "sqcand" : "270002544545", "nm" : "AMELIO CAYRES DE ALMEIDA", "nmu" : "AMÉLIO CAYRES", "sgp" : "MDB" } ] } ] } ] }
