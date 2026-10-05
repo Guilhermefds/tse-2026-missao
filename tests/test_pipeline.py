@@ -167,3 +167,43 @@ def test_perfil_sem_contagem_vira_aviso(ambiente, tmp_path, capsys):
     assert "perfil_mun" not in t and "cand_mun" in t
     saida = capsys.readouterr().out
     assert "perfil_eleitorado_2026.zip ignorado" in saida and "Colunas do arquivo" in saida
+
+
+def _rezipar_com_brasil(origem: Path, destino: Path, brasil_com_presidente: bool) -> None:
+    """Reempacota o zip sintético no layout _BRASIL.csv + _BR.csv (sem os CSVs por UF)."""
+    import io
+    import zipfile
+    with zipfile.ZipFile(origem) as zf:
+        nomes = [n for n in zf.namelist() if n.endswith(".csv")]
+        br = next(n for n in nomes if n.endswith("_BR.csv"))
+        ufs = [n for n in nomes if n != br]
+        partes = [pd.read_csv(zf.open(n), sep=";", encoding="latin-1", dtype=str) for n in ufs]
+        texto_br = zf.read(br)
+    brasil = pd.concat(partes)
+    if not brasil_com_presidente:
+        brasil = brasil[brasil["CD_CARGO"] != "1"]
+    buf = io.StringIO()
+    brasil.to_csv(buf, sep=";", index=False, quoting=1)
+    with zipfile.ZipFile(destino, "w") as zf:
+        zf.writestr("votacao_candidato_munzona_2026_BRASIL.csv", buf.getvalue().encode("latin-1"))
+        zf.writestr("votacao_candidato_munzona_2026_BR.csv", texto_br)
+
+
+@pytest.mark.parametrize("brasil_com_presidente", [False, True])
+def test_layout_brasil_mais_br(ambiente, tmp_path, brasil_com_presidente):
+    from missao.carregar import processar_votacao_candidato
+    cfg, t, _ = ambiente
+    destino = tmp_path / "votacao_candidato_munzona_2026.zip"
+    _rezipar_com_brasil(cfg.dir_brutos / "cdn" / "votacao_candidato_munzona_2026.zip", destino, brasil_com_presidente)
+    novo = processar_votacao_candidato(cfg, destino)
+    pres = lambda d: d[d.cd_cargo == 1].votos.sum()  # noqa: E731
+    assert pres(novo["cand_mun"]) == pres(t["cand_mun"]) > 0          # nem perde, nem duplica Presidente
+    assert novo["cand_uf"].query("cd_cargo == 6").votos.sum() == t["cand_uf"].query("cd_cargo == 6").votos.sum()
+
+
+def test_analisar_sem_presidente_explica(ambiente):
+    from missao.metricas import analisar
+    cfg, t, _ = ambiente
+    t2 = dict(t, cand_mun=t["cand_mun"][t["cand_mun"].cd_cargo != 1])
+    with pytest.raises(SystemExit, match="diagnosticar"):
+        analisar(cfg, t2)

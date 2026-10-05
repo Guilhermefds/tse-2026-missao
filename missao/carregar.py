@@ -47,12 +47,17 @@ def _num(s: pd.Series) -> pd.Series:
 
 
 def _membros_csv(zf: zipfile.ZipFile) -> tuple[list[str], str | None]:
-    """Escolhe quais CSVs ler dentro do zip. Retorna (membros, membro_BR)."""
+    """Escolhe quais CSVs ler dentro do zip. Retorna (membros, membro_BR).
+
+    O TSE publica um CSV por UF, um *_BR.csv (abrangência nacional: Presidente) e às vezes um
+    *_BRASIL.csv que junta as UFs. Com _BRASIL, lê-se ele + o _BR (o _BRASIL pode não trazer Presidente);
+    a dupla contagem de Presidente é removida depois, em `ler_zip_tse`, preferindo as linhas do _BR.
+    """
     csvs = [m for m in zf.namelist() if m.lower().endswith(".csv")]
+    br = next((m for m in csvs if m.upper().endswith("_BR.CSV")), None)
     brasil = [m for m in csvs if m.upper().endswith("_BRASIL.CSV")]
     if brasil:
-        return brasil, None
-    br = next((m for m in csvs if m.upper().endswith("_BR.CSV")), None)
+        return brasil + ([br] if br else []), br
     return csvs, br
 
 
@@ -437,6 +442,7 @@ def processar(cfg: Config) -> dict[str, pd.DataFrame]:
     arq = lambda nome: cdn / f"{nome}.zip"  # noqa: E731
 
     if arq(f"votacao_candidato_munzona_{cfg.ano}").exists():
+        print(f"[processar] fonte: Portal de Dados Abertos (votacao_candidato_munzona_{cfg.ano}.zip)")
         tabelas.update(processar_votacao_candidato(cfg, arq(f"votacao_candidato_munzona_{cfg.ano}")))
         if arq(f"votacao_partido_munzona_{cfg.ano}").exists():
             tabelas["partido_mun"] = processar_votacao_partido(cfg, arq(f"votacao_partido_munzona_{cfg.ano}"))

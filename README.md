@@ -42,7 +42,7 @@ Fonte principal: [Portal de Dados Abertos do TSE](https://dadosabertos.tse.jus.b
 | `perfil_eleitorado_2026` | sexo, idade e escolaridade do eleitorado por município |
 | `votacao_candidato_munzona_2022` | base de comparação (voto esperado e origem dos votos) |
 
-Logo após a eleição o TSE costuma publicar primeiro na API de divulgação (`resultados.tse.jus.br`) e só depois os consolidados acima. `python -m missao baixar` tenta o portal e, se o ano ainda não estiver publicado, cai para a API (`--fonte api` força). O parser da API é tolerante a mudanças de formato, mas confira o resultado com `make conferir`.
+Logo após a eleição o TSE costuma publicar primeiro na API de divulgação (`resultados.tse.jus.br`) e só depois os consolidados acima. `python -m missao baixar` tenta o portal e, se o ano ainda não estiver publicado, cai para a API (`--fonte api` força). O parser da API é tolerante a mudanças de formato, mas confira o resultado com `make conferir`. Se algo não bater, `python -m missao diagnosticar` mostra o layout de cada zip (CSVs, colunas, linhas por cargo) e o que foi extraído.
 
 **Ambiente na nuvem do Claude Code:** os domínios `cdn.tse.jus.br`, `resultados.tse.jus.br` e `dadosabertos.tse.jus.br` precisam estar liberados em *Network access* do ambiente. Localmente não há restrição.
 
@@ -66,7 +66,8 @@ missao/
   carregar.py    leitura dos CSVs/JSON do TSE e normalização em parquet
   metricas.py    todas as análises
   relatorio.py   HTML, XLSX, CSVs e RESUMO.md
-  __main__.py    CLI: python -m missao {baixar,processar,conferir,analisar,tudo}
+  diagnostico.py inspeção dos zips do TSE e das tabelas processadas
+  __main__.py    CLI: python -m missao {baixar,processar,conferir,analisar,diagnosticar,tudo}
 scripts/gerar_sintetico.py   dados sintéticos no formato exato do TSE (testes e demonstração)
 tests/                       testes ponta a ponta
 config.yaml                  partido, número do presidenciável, limiares

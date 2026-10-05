@@ -915,6 +915,12 @@ def fatos(cfg: Config, base: pd.DataFrame, r: dict) -> pd.DataFrame:
 # =========================================================================== orquestração
 
 def analisar(cfg: Config, t: dict) -> dict[str, pd.DataFrame]:
+    pres = t["cand_mun"][t["cand_mun"]["cd_cargo"] == PRESIDENTE]
+    if pres.empty or pres["votos"].sum() == 0:
+        cargos = t["cand_mun"]["cd_cargo"].value_counts().to_dict()
+        raise SystemExit(
+            "Nenhum voto para Presidente nos dados processados (votos por cargo em cand_mun: "
+            f"{cargos}). Rode `python -m missao diagnosticar` e envie a saída.")
     base, nomes_pres = montar_base(cfg, t)
     r: dict[str, pd.DataFrame] = {}
     r["resumo"] = resumo_geral(cfg, t, base, nomes_pres)
