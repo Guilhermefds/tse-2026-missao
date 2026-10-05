@@ -356,3 +356,17 @@ def test_relatorio_a_partir_da_planilha(ambiente, tmp_path):
     assert esp["razao_real_esperado"].std() > 0          # modelo sem efeito de UF diferencia os estados
     q = pd.read_excel(caminhos["xlsx"], sheet_name="quociente")
     assert (q["faltaram_proximo_qe"] > 0).all()
+
+
+def test_pagina_completa_para_hospedagem(ambiente, tmp_path):
+    import json
+    cfg, _, r = ambiente
+    cfg.dir_saida = tmp_path
+    caminhos = gerar_relatorio(cfg, r, sintetico=True)
+    site = caminhos["site"].read_text(encoding="utf-8")
+    assert site.startswith("<!doctype html>") and site.rstrip().endswith("</html>")
+    cabeca, corpo = site.split("</head>")
+    assert "<title>" in cabeca and "<style>" in cabeca and "<title>" not in corpo
+    assert 'href="analise_completa.xlsx"' in corpo
+    vercel = json.loads((RAIZ / "vercel.json").read_text(encoding="utf-8"))
+    assert vercel["outputDirectory"] == "saida" and vercel["framework"] is None

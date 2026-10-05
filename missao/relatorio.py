@@ -461,6 +461,8 @@ input.busca{min-width:0;width:min(280px,100%)}
 .glossario p{font-size:13.5px;color:var(--ink-2)}
 #dica{position:fixed;pointer-events:none;z-index:20;background:var(--ink);color:var(--bg);font-size:12.5px;line-height:1.4;padding:7px 9px;border-radius:6px;max-width:300px;white-space:pre-line}
 footer{margin-top:56px;padding-top:16px;border-top:1px solid var(--line);color:var(--muted);font-size:12.5px;display:grid;gap:6px}
+footer a{color:var(--ink-2);text-underline-offset:2px}
+footer a:hover{color:var(--ink)}
 code{font-family:var(--f-mono);font-size:.92em}
 @media (prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
 """
@@ -909,6 +911,22 @@ def gerar_resumo_md(cfg: Config, r: dict, sintetico: bool) -> str:
     return "\n".join(partes)
 
 
+def pagina_completa(fragmento: str) -> str:
+    """Documento HTML completo para hospedar o relatório como site estático (ex.: Vercel).
+
+    `relatorio.html` é um fragmento (título, estilos e corpo) pensado para visualizadores que montam o
+    <head>; aqui o cabeçalho vai para <head>, o resto para <body>, e o rodapé ganha links de download.
+    """
+    corte = fragmento.index("</style>") + len("</style>")
+    cabeca, corpo = fragmento[:corte], fragmento[corte:]
+    downloads = ('<span>Baixar: <a href="analise_completa.xlsx" download>planilha completa (.xlsx)</a> · '
+                 '<a href="RESUMO.md">resumo em texto</a> · <a href="LEITURA.md">leitura</a></span>')
+    corpo = corpo.replace("<footer>", "<footer>" + downloads, 1)
+    return ('<!doctype html>\n<html lang="pt-BR">\n<head>\n<meta charset="utf-8">\n'
+            '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n'
+            f"{cabeca}\n</head>\n<body>\n{corpo}\n</body>\n</html>\n")
+
+
 def gerar_relatorio(cfg: Config, r: dict, sintetico: bool = False) -> dict[str, Path]:
     saida = cfg.dir_saida
     saida.mkdir(parents=True, exist_ok=True)
@@ -916,7 +934,10 @@ def gerar_relatorio(cfg: Config, r: dict, sintetico: bool = False) -> dict[str, 
     caminhos = {}
 
     caminhos["html"] = saida / "relatorio.html"
-    caminhos["html"].write_text(montar_html(cfg, r, sintetico), encoding="utf-8")
+    fragmento = montar_html(cfg, r, sintetico)
+    caminhos["html"].write_text(fragmento, encoding="utf-8")
+    caminhos["site"] = saida / "index.html"  # mesmo relatório como página completa, para hospedagem estática
+    caminhos["site"].write_text(pagina_completa(fragmento), encoding="utf-8")
 
     caminhos["xlsx"] = saida / "analise_completa.xlsx"
     with pd.ExcelWriter(caminhos["xlsx"], engine="openpyxl") as xw:

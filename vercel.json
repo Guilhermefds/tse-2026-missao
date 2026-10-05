@@ -1,0 +1,13 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "echo 'Site estático: nada a instalar'",
+  "buildCommand": "echo 'Site estático: publicando a pasta saida/'",
+  "outputDirectory": "saida",
+  "headers": [
+    {
+      "source": "/(.*)\\.md",
+      "headers": [{ "key": "Content-Type", "value": "text/plain; charset=utf-8" }]
+    }
+  ]
+}

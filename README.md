@@ -31,6 +31,10 @@ Extras: desempenho individual de cada candidato (votos, % da UF, reduto, concent
 - `RESUMO.md` — destaques e principais tabelas em texto.
 - `LEITURA.md` — leitura estratégica escrita sobre os resultados (aparece no topo do relatório quando existe).
 
+## Publicar como site (Vercel)
+
+O site é estático: a pasta `saida/`, com `index.html` (o relatório como página completa, com links para a planilha e os resumos). O `vercel.json` desliga a detecção de Python, que fazia o Vercel procurar um servidor (`app.py`, `main.py`…) que este projeto não tem, e publica `saida/` sem build. Para atualizar o site, rode a análise e faça push de `saida/`. Por padrão, deploys do Vercel são públicos; use *Deployment Protection* no projeto se o relatório não deve ficar aberto.
+
 ## Dados
 
 Fonte principal: [Portal de Dados Abertos do TSE](https://dadosabertos.tse.jus.br/) (`cdn.tse.jus.br/estatistica/sead/odsele/`):
