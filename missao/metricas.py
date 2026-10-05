@@ -192,6 +192,8 @@ def montar_base(cfg: Config, t: dict) -> tuple[pd.DataFrame, dict[int, str]]:
     perfil = t.get("perfil_mun")
     if perfil is not None and len(perfil):
         base = base.merge(perfil, on=chave, how="left")
+        if base["aptos"].fillna(0).sum() == 0:  # fonte sem eleitorado (ex.: API): usa o cadastro do perfil
+            base["aptos"] = base["eleitorado_perfil"].fillna(0).astype("int64")
 
     faixas = cfg.faixas_eleitorado
     rotulos = [_rotulo_faixa(faixas[i], faixas[i + 1]) for i in range(len(faixas) - 1)]
@@ -518,8 +520,12 @@ def quociente(cfg: Config, t: dict, base: pd.DataFrame) -> pd.DataFrame:
                                  ("de", [DEP_ESTADUAL, DEP_DISTRITAL], "Dep. Estadual/Distrital")):
         p = pm[pm["cd_cargo"].isin(cargos)]
         c = cu[cu["cd_cargo"].isin(cargos)]
+        det = t.get("detalhe_mun")
         for uf, pu in p.groupby("sg_uf"):
             validos = pu["votos_total"].sum()
+            if det is not None:  # válidos oficiais do cargo (incluem legenda mesmo quando a fonte não a detalha)
+                dv = det.loc[det["cd_cargo"].isin(cargos) & (det["sg_uf"] == uf), "validos"].sum()
+                validos = dv if dv > 0 else validos
             eleitos = c[(c["sg_uf"] == uf) & c["situacao"].fillna("").str.upper().str.startswith("ELEITO")]
             vagas = len(eleitos)
             if vagas == 0:

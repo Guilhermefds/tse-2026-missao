@@ -42,7 +42,7 @@ Fonte principal: [Portal de Dados Abertos do TSE](https://dadosabertos.tse.jus.b
 | `perfil_eleitorado_2026` | sexo, idade e escolaridade do eleitorado por município |
 | `votacao_candidato_munzona_2022` | base de comparação (voto esperado e origem dos votos) |
 
-Logo após a eleição o TSE costuma publicar primeiro na API de divulgação (`resultados.tse.jus.br`) e só depois os consolidados acima. `python -m missao baixar` tenta o portal e, se o ano ainda não estiver publicado, cai para a API (`--fonte api` força). O parser da API é tolerante a mudanças de formato, mas confira o resultado com `make conferir`. Se algo não bater, `python -m missao diagnosticar` mostra o layout de cada zip (CSVs, colunas, linhas por cargo) e o que foi extraído.
+Logo após a eleição o TSE publica os consolidados de 2026 **só com os cabeçalhos** (zips de poucos KB) e os resultados ficam apenas na API de divulgação (`resultados.tse.jus.br`). O pipeline detecta zips sem dados e usa a API; a sigla do partido, que a API não traz, vem do `consulta_cand`. Nessa fonte não há votação por zona eleitoral. `python -m missao baixar` tenta o portal e, se o ano ainda não estiver publicado, cai para a API (`--fonte api` força). O parser da API é tolerante a mudanças de formato, mas confira o resultado com `make conferir`. Se algo não bater, `python -m missao diagnosticar` mostra o layout de cada zip (CSVs, colunas, linhas por cargo) e o que foi extraído.
 
 **Ambiente na nuvem do Claude Code:** os domínios `cdn.tse.jus.br`, `resultados.tse.jus.br` e `dadosabertos.tse.jus.br` precisam estar liberados em *Network access* do ambiente. Localmente não há restrição.
 

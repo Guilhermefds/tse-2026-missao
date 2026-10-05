@@ -773,6 +773,9 @@ def montar_html(cfg: Config, r: dict, sintetico: bool = False) -> str:
         blocos_z = (_bloco("Zonas eleitorais com maior % (≥ 5 mil válidos)", T(r["zonas_top"], id_="ztop", busca=True))
                     + _bloco("Maior desigualdade entre zonas do mesmo município", T(r["zonas_amplitude"], id_="zamp"))
                     + _bloco("Zonas das capitais", T(r["zonas_capitais"], id_="zcap", busca=True, visiveis=15)))
+    if not blocos_z:
+        blocos_z = ('<p class="nota">Votação por zona eleitoral indisponível nesta fonte: a API de divulgação do TSE '
+                    'traz resultados por município. As zonas entram quando os arquivos consolidados forem publicados.</p>')
     s_zona = _secao("zonas", "10", "Zonas eleitorais e exterior",
                     "Dentro das grandes cidades o voto varia muito de bairro para bairro. As zonas eleitorais são a menor "
                     "unidade territorial dos arquivos consolidados do TSE.",

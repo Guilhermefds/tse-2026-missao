@@ -11,14 +11,15 @@ from pathlib import Path
 
 import pandas as pd
 
-from .carregar import _membros_csv, _norm_col
+from .carregar import _membros_csv, _norm_col, zip_tem_dados
 from .config import Config
 
 CHAVES = ["ANO_ELEICAO", "NR_TURNO", "CD_TIPO_ELEICAO", "CD_CARGO"]
 
 
 def _zip(caminho: Path, contar: bool) -> None:
-    print(f"\n== {caminho.name} ({caminho.stat().st_size / 1e6:,.1f} MB)")
+    vazio = "" if zip_tem_dados(caminho) else "  ← SEM DADOS (só cabeçalhos)"
+    print(f"\n== {caminho.name} ({caminho.stat().st_size / 1e6:,.1f} MB){vazio}")
     with zipfile.ZipFile(caminho) as zf:
         infos = [i for i in zf.infolist() if i.filename.lower().endswith(".csv")]
         escolhidos, br = _membros_csv(zf)

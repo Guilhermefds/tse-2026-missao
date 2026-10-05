@@ -3,8 +3,8 @@ __pycache__/
 .pytest_cache/
 dados/brutos/
 dados/processados/
-dados/sintetico/
-saida/_tmp/
+dados/sintetico*/
+saida/_tmp*/
 .venv/
 saida/*.pkl
 saida/exemplo_sintetico/

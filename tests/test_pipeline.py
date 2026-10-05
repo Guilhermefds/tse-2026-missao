@@ -207,3 +207,60 @@ def test_analisar_sem_presidente_explica(ambiente):
     t2 = dict(t, cand_mun=t["cand_mun"][t["cand_mun"].cd_cargo != 1])
     with pytest.raises(SystemExit, match="diagnosticar"):
         analisar(cfg, t2)
+
+
+# --------------------------------------------------------------------------- consolidados vazios → API
+
+def _so_cabecalhos(z: Path) -> None:
+    import zipfile
+    with zipfile.ZipFile(z) as zf:
+        membros = [(n, zf.read(n).split(b"\n", 1)[0] + b"\n") for n in zf.namelist()]
+    with zipfile.ZipFile(z, "w") as zf:
+        for n, cab in membros:
+            zf.writestr(n, cab)
+
+
+@pytest.fixture(scope="session")
+def ambiente_api(tmp_path_factory):
+    """Mesmos dados sintéticos, com os consolidados de 2026 publicados vazios (como o TSE fez) + JSON da API."""
+    import shutil
+    base = tmp_path_factory.mktemp("api")
+    spec = importlib.util.spec_from_file_location("gerar_sintetico_api", RAIZ / "scripts" / "gerar_sintetico.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    mod.main(base / "cdn_ok" / "brutos" / "cdn", api=base / "api_ok" / "brutos" / "api")
+    shutil.copytree(base / "cdn_ok" / "brutos" / "cdn", base / "vazio" / "brutos" / "cdn")
+    shutil.copytree(base / "api_ok" / "brutos" / "api", base / "vazio" / "brutos" / "api")
+    for nome in ("votacao_candidato_munzona_2026", "votacao_partido_munzona_2026", "detalhe_votacao_munzona_2026"):
+        _so_cabecalhos(base / "vazio" / "brutos" / "cdn" / f"{nome}.zip")
+    return base
+
+
+def test_zip_so_com_cabecalho(ambiente_api):
+    from missao.carregar import zip_tem_dados
+    assert zip_tem_dados(ambiente_api / "cdn_ok" / "brutos" / "cdn" / "votacao_candidato_munzona_2026.zip")
+    assert not zip_tem_dados(ambiente_api / "vazio" / "brutos" / "cdn" / "votacao_candidato_munzona_2026.zip")
+
+
+def test_consolidado_vazio_usa_api_com_mesmos_totais(ambiente_api):
+    ok = processar(carregar_config(dir_dados=ambiente_api / "cdn_ok", dir_saida=ambiente_api / "s1"))
+    api = processar(carregar_config(dir_dados=ambiente_api / "vazio", dir_saida=ambiente_api / "s2"))
+    for cargo in (1, 3, 5):
+        a = ok["cand_mun"].query("cd_cargo == @cargo").votos.sum()
+        assert api["cand_mun"].query("cd_cargo == @cargo").votos.sum() == a > 0
+    for cargo in (6, 7):
+        assert (api["partido_mun"].query("cd_cargo == @cargo").votos_total.sum()
+                == ok["partido_mun"].query("cd_cargo == @cargo").votos_total.sum())
+    # partido completado pelo cadastro (a API não traz sigla)
+    assert (api["cand_uf"].query("nr_partido == 14").sg_partido == "MISSÃO").all()
+    cfg = carregar_config(dir_dados=ambiente_api / "vazio", dir_saida=ambiente_api / "s2")
+    r = analisar(cfg, carregar(cfg))
+    assert r["podio"].nm_municipio.iat[0] == "VILA DO RENAN"
+    assert "REDUTO DO DEPUTADO" in r["df_maior_que_pres"].nm_municipio.tolist()
+
+
+def test_consolidado_vazio_sem_api_explica(ambiente_api, tmp_path):
+    import shutil
+    shutil.copytree(ambiente_api / "vazio" / "brutos" / "cdn", tmp_path / "brutos" / "cdn")
+    with pytest.raises(SystemExit, match="--fonte api"):
+        processar(carregar_config(dir_dados=tmp_path, dir_saida=tmp_path / "s"))

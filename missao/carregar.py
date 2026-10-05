@@ -70,6 +70,18 @@ def _norm_col(c: str) -> str:
     return str(c).replace("\ufeff", "").replace("ï»¿", "").strip().strip('"').strip().upper()
 
 
+def zip_tem_dados(caminho: Path) -> bool:
+    """False quando o zip só traz cabeçalhos — o TSE publica assim os consolidados antes de totalizar."""
+    with zipfile.ZipFile(caminho) as zf:
+        for info in zf.infolist():
+            if info.filename.lower().endswith(".csv"):
+                with zf.open(info) as f:
+                    f.readline()
+                    if f.readline().strip():
+                        return True
+    return False
+
+
 def ler_zip_tse(caminho: Path, colunas: set[str], filtro=None, chunksize: int = 400_000,
                 apenas_br: bool = False, prefixos: tuple[str, ...] = ()) -> pd.DataFrame:
     """Lê os CSVs (latin-1, ';') de um zip do TSE mantendo só `colunas` (e as que começam com `prefixos`)
@@ -428,6 +440,24 @@ def montar_municipios(detalhe_mun: pd.DataFrame) -> pd.DataFrame:
     return m.reset_index(drop=True)
 
 
+def _completar_partidos(tabelas: dict[str, pd.DataFrame]) -> None:
+    """A API de divulgação não traz sigla de partido/federação por candidato: completa pelo cadastro."""
+    c = tabelas["candidatos"]
+    if not {"nr_partido", "sg_partido"} <= set(c.columns):
+        return
+    fed = c["sg_federacao"] if "sg_federacao" in c else pd.Series("", index=c.index)
+    ref = (pd.DataFrame({"nr_partido": c["nr_partido"], "sg": c["sg_partido"], "fed": fed.fillna("")})
+           .groupby("nr_partido").agg(lambda s: s.mode().iat[0] if len(s.mode()) else ""))
+    for nome in ("cand_mun", "cand_uf", "partido_mun"):
+        df = tabelas.get(nome)
+        if df is None or df.empty:
+            continue
+        sg = df["nr_partido"].map(ref["sg"])
+        df["sg_partido"] = df["sg_partido"].where(df["sg_partido"].fillna("") != "", sg).fillna("")
+        df["sg_federacao"] = df["sg_federacao"].where(df["sg_federacao"].fillna("") != "",
+                                                      df["nr_partido"].map(ref["fed"])).fillna("")
+
+
 def salvar(tabelas: dict[str, pd.DataFrame], destino: Path) -> None:
     destino.mkdir(parents=True, exist_ok=True)
     for nome, df in tabelas.items():
@@ -438,19 +468,31 @@ def salvar(tabelas: dict[str, pd.DataFrame], destino: Path) -> None:
 def processar(cfg: Config) -> dict[str, pd.DataFrame]:
     """Processa o que estiver disponível em dados/brutos (CDN tem prioridade sobre API)."""
     cdn = cfg.dir_brutos / "cdn"
+    api = cfg.dir_brutos / "api"
     tabelas: dict[str, pd.DataFrame] = {}
     arq = lambda nome: cdn / f"{nome}.zip"  # noqa: E731
+    com_dados = lambda nome: arq(nome).exists() and zip_tem_dados(arq(nome))  # noqa: E731
 
-    if arq(f"votacao_candidato_munzona_{cfg.ano}").exists():
-        print(f"[processar] fonte: Portal de Dados Abertos (votacao_candidato_munzona_{cfg.ano}.zip)")
-        tabelas.update(processar_votacao_candidato(cfg, arq(f"votacao_candidato_munzona_{cfg.ano}")))
-        if arq(f"votacao_partido_munzona_{cfg.ano}").exists():
+    vot = f"votacao_candidato_munzona_{cfg.ano}"
+    fonte = "cdn"
+    if com_dados(vot):
+        print(f"[processar] fonte: Portal de Dados Abertos ({vot}.zip)")
+        tabelas.update(processar_votacao_candidato(cfg, arq(vot)))
+        if com_dados(f"votacao_partido_munzona_{cfg.ano}"):
             tabelas["partido_mun"] = processar_votacao_partido(cfg, arq(f"votacao_partido_munzona_{cfg.ano}"))
-        if arq(f"detalhe_votacao_munzona_{cfg.ano}").exists():
+        if com_dados(f"detalhe_votacao_munzona_{cfg.ano}"):
             tabelas.update(processar_detalhe(cfg, arq(f"detalhe_votacao_munzona_{cfg.ano}")))
-    elif (cfg.dir_brutos / "api").exists():
-        print("[processar] CDN indisponível — usando JSON da API de divulgação")
-        tabelas.update(processar_api(cfg, cfg.dir_brutos / "api"))
+    elif api.exists() and any(api.glob("*/*/*-r.json")):
+        if arq(vot).exists():
+            print(f"[processar] {vot}.zip foi publicado sem dados (só cabeçalhos): o TSE ainda não liberou os "
+                  "consolidados. Usando a API de divulgação.")
+        print("[processar] fonte: API de divulgação (resultados.tse.jus.br)")
+        tabelas.update(processar_api(cfg, api))
+        fonte = "api"
+    elif arq(vot).exists():
+        raise SystemExit(f"{vot}.zip foi publicado sem dados (só cabeçalhos): o TSE ainda não liberou os resultados "
+                         "consolidados. Baixe da API de divulgação com `python -m missao baixar --fonte api` e rode "
+                         "`python -m missao processar` de novo.")
     else:
         raise FileNotFoundError("Nenhum dado bruto encontrado. Rode `python -m missao baixar` primeiro.")
 
@@ -475,6 +517,8 @@ def processar(cfg: Config) -> dict[str, pd.DataFrame]:
         except Exception as erro:  # noqa: BLE001
             print(f"[processar] AVISO: {nome}.zip ignorado — {type(erro).__name__}: {erro}")
 
+    if fonte == "api" and "candidatos" in tabelas:
+        _completar_partidos(tabelas)
     tabelas["municipios"] = montar_municipios(tabelas["detalhe_mun"])
     salvar(tabelas, cfg.dir_processados)
     return tabelas

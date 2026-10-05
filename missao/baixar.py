@@ -14,6 +14,7 @@ from pathlib import Path
 
 import httpx
 
+from .carregar import zip_tem_dados
 from .config import Config, DEP_DISTRITAL, DEP_ESTADUAL, DEP_FEDERAL, GOVERNADOR, PRESIDENTE, SENADOR
 
 # (pasta no CDN, ano relativo) — "atual" = ano da eleição; "comparacao" = ano de referência
@@ -87,9 +88,16 @@ def baixar_cdn(cfg: Config, apenas: list[str] | None = None) -> dict[str, Path |
             resultado[nome] = None
             for url in candidatos_url:
                 destino = cfg.dir_brutos / "cdn" / Path(url).name
+                if destino.exists() and not zip_tem_dados(destino):
+                    destino.unlink()  # versão antiga só com cabeçalhos: tenta de novo
                 try:
                     print(f"[cdn] {url}")
-                    resultado[nome] = baixar_arquivo(url, destino, cliente)
+                    baixar_arquivo(url, destino, cliente)
+                    if not zip_tem_dados(destino):
+                        print("      publicado sem dados (só cabeçalhos) — o TSE ainda não liberou este arquivo")
+                        destino.unlink()
+                        continue
+                    resultado[nome] = destino
                     break
                 except httpx.HTTPStatusError as erro:
                     print(f"      indisponível ({erro.response.status_code})")
@@ -203,16 +211,23 @@ def baixar_api(cfg: Config, eleicoes: list[str] | None = None, max_workers: int 
 
         def _um(par):
             url, destino = par
-            try:
-                r = cliente.get(url)
-                if r.status_code == 404:
-                    return "404"
-                r.raise_for_status()
-                destino.parent.mkdir(parents=True, exist_ok=True)
-                destino.write_bytes(r.content)
-                return "ok"
-            except Exception as erro:  # noqa: BLE001 — registra e segue
-                return f"erro: {erro}"
+            for tentativa in range(4):
+                try:
+                    r = cliente.get(url)
+                    if r.status_code == 404:
+                        return "404"
+                    if r.status_code in (429, 500, 502, 503, 504):
+                        time.sleep(2 ** (tentativa + 1))
+                        continue
+                    r.raise_for_status()
+                    destino.parent.mkdir(parents=True, exist_ok=True)
+                    destino.write_bytes(r.content)
+                    return "ok"
+                except httpx.TransportError:
+                    time.sleep(2 ** (tentativa + 1))
+                except Exception as erro:  # noqa: BLE001 — registra e segue
+                    return f"erro: {erro}"
+            return "erro: esgotou tentativas"
 
         contagem: dict[str, int] = {}
         with ThreadPoolExecutor(max_workers=max_workers) as pool:
@@ -221,5 +236,5 @@ def baixar_api(cfg: Config, eleicoes: list[str] | None = None, max_workers: int 
                 contagem[chave] = contagem.get(chave, 0) + 1
                 if i % 2000 == 0:
                     print(f"[api] {i}/{len(faltando)} {contagem}")
-        print(f"[api] concluído: {contagem}")
+        print(f"[api] concluído: {contagem}. Se houver erros, rode o mesmo comando de novo: só o que falta é baixado.")
     return base

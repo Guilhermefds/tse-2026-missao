@@ -8,7 +8,8 @@ Fatos plantados (verificados em tests/):
   - "REDUTO DO DEPUTADO" (MG): um deputado federal do partido tem muito mais votos que o presidenciável.
   - "CIDADE SEM VOTO" (PI): zero votos para o presidenciável.
 
-Uso: python scripts/gerar_sintetico.py [destino]   (padrão: dados/sintetico/brutos/cdn)
+Uso: python scripts/gerar_sintetico.py [destino] [--api]   (padrão: dados/sintetico/brutos/cdn)
+     --api também grava os resultados no formato JSON da API de divulgação em <destino>/../api
 """
 from __future__ import annotations
 
@@ -165,7 +166,54 @@ def shares_partidos(m, pres_share_renan):
     return nrs, sh / sh.sum()
 
 
-def main(destino: Path):
+def escrever_api(destino_api: Path, muns, linhas_cand, linhas_det, linhas_part):
+    """Grava os mesmos resultados no formato JSON 'dados-simplificados' da API de divulgação do TSE."""
+    import json
+    eleicoes = {1: "620", 3: "621", 5: "621", 6: "621", 7: "621", 8: "621"}
+    agg_c: dict = {}
+    for c, m, zona, q, cargo in linhas_cand:
+        chave = (m["cd"], cargo, c["sq"])
+        agg_c[chave] = agg_c.get(chave, (c, 0))[0], agg_c.get(chave, (c, 0))[1] + q
+    agg_d: dict = {}
+    for x in linhas_det:
+        d = agg_d.setdefault((x["m"]["cd"], x["cargo"]), dict(e=0, c=0, a=0, vb=0, tvn=0, vv=0))
+        d["e"] += x["aptos"]; d["c"] += x["comp"]; d["a"] += x["abst"]
+        d["vb"] += x["br"]; d["tvn"] += x["nu"]; d["vv"] += x["nom"] + x["leg"]
+    agg_l: dict = {}
+    for x in linhas_part:
+        agg_l[(x["m"]["cd"], x["cargo"], x["p"])] = agg_l.get((x["m"]["cd"], x["cargo"], x["p"]), 0) + x["leg"]
+    por_mun = {m["cd"]: m for m in muns}
+    cands_por: dict = {}
+    for (cd, cargo, _), (c, q) in agg_c.items():
+        cands_por.setdefault((cd, cargo), []).append((c, q))
+    for ele in sorted(set(eleicoes.values())):
+        abr = {}
+        for m in muns:
+            if ele == "621" and m["uf"] == "ZZ":
+                continue
+            abr.setdefault(m["uf"], []).append({"cd": f"{m['cd']:05d}", "nm": m["nome"], "c": "S" if m["capital"] else "N",
+                                                "z": [f"{z:04d}" for z, _ in m["zonas"]]})
+        cfg_mun = {"abr": [{"cd": uf, "ds": uf, "mu": mu} for uf, mu in abr.items()]}
+        (destino_api / ele).mkdir(parents=True, exist_ok=True)
+        (destino_api / ele / f"mun-e{int(ele):06d}-cm.json").write_text(json.dumps(cfg_mun, ensure_ascii=False))
+    for (cd, cargo), lista in cands_por.items():
+        m, ele = por_mun[cd], eleicoes[cargo]
+        d = agg_d.get((cd, cargo), {})
+        lista = sorted(lista, key=lambda t: -t[1])
+        dados = {"ele": ele, "tpabr": "MU", "cdabr": f"{cd:05d}", **{k: str(v) for k, v in d.items()},
+                 "cand": [{"seq": str(i + 1), "sqcand": c["sq"], "n": str(c["nr"]), "nm": c["nome"], "cc": "",
+                           "e": "s" if c["situacao"].startswith("ELEITO") else "n", "st": c["situacao"].capitalize(),
+                           "dvt": "Válido", "vap": str(q)} for i, (c, q) in enumerate(lista)]}
+        if cargo in (6, 7, 8):
+            dados["agr"] = [{"n": str(p), "sg": PARTIDOS[p][0], "vl": str(agg_l.get((cd, cargo, p), 0))} for p in PARTIDOS]
+        pasta = destino_api / ele / m["uf"].lower()
+        pasta.mkdir(parents=True, exist_ok=True)
+        nome = f"{m['uf'].lower()}{cd:05d}-c{cargo:04d}-e{int(ele):06d}-r.json"
+        (pasta / nome).write_text(json.dumps(dados, ensure_ascii=False))
+    print(f"[sintético] API: {sum(1 for _ in destino_api.glob('*/*/*-r.json'))} arquivos JSON em {destino_api}")
+
+
+def main(destino: Path, api: Path | None = None):
     destino.mkdir(parents=True, exist_ok=True)
     muns = gerar_municipios()
     sq = iter(range(250000000001, 250000999999))
@@ -406,7 +454,11 @@ def main(destino: Path):
         c = dict(sq=f"2022{nr}", nr=nr, nome=PRES22[nr], partido=nr, situacao="NÃO ELEITO")
         ant.setdefault("BR", []).append(linha_cand(c, m, zona, q, 1, ano=ANO_ANT))
     escrever_zip(f"votacao_candidato_munzona_{ANO_ANT}.zip", COLS_VOT, ant)
+    if api is not None:
+        escrever_api(api, muns, linhas_cand, linhas_det, linhas_part)
 
 
 if __name__ == "__main__":
-    main(Path(sys.argv[1]) if len(sys.argv) > 1 else RAIZ / "dados" / "sintetico" / "brutos" / "cdn")
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    cdn = Path(args[0]) if args else RAIZ / "dados" / "sintetico" / "brutos" / "cdn"
+    main(cdn, api=cdn.parent / "api" if "--api" in sys.argv else None)
