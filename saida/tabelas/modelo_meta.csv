@@ -1,0 +1,6 @@
+﻿item;valor
+Municípios no modelo;5570
+Pseudo-R² (deviance);0.9021014020478667
+Covariáveis contínuas;log_aptos, abstencao_pct, pct_fem, pct_16_24, pct_25_34, pct_60m, pct_superior, pct_fund_inc, ant_22_pct, ant_15_pct, ant_12_pct, ant_44_pct, ant_30_pct
+Efeito fixo de UF;sim
+Dispersão (X²/gl);7.899419626031225

@@ -1,0 +1,12 @@
+﻿indicador;valor
+Votos Dep. Federal ÷ votos do presidente;0.45874714166220193
+Votos Dep. Estadual ÷ votos do presidente;0.3021595330228701
+Votos de legenda (DF) ÷ votos do presidente;0.02721433774858025
+Legenda como % dos votos do partido (DF);5.932317670683059
+Retenção mínima (Σ min(DF, pres) ÷ Σ pres);0.45054752236149037
+Correlação municipal % pres × % DF (ponderada);0.7443658539490552
+Elasticidade % DF em relação ao % pres;1.863701715386348
+Correlação municipal % pres × % DE (ponderada);0.7491767017592716
+Municípios onde DF > presidente;90
+Municípios onde DE > presidente;13
+Municípios com presidente votado e sem nenhum voto em DF do partido;64
