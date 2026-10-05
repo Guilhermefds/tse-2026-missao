@@ -1171,9 +1171,9 @@ def reprocessar_planilha(cfg: Config, sintetico: bool = False) -> dict[str, Path
     r["base_municipal"] = base.merge(residuos, on=["sg_uf", "cd_municipio"], how="left")
     q = r["quociente"]
     q["faltaram_proximo_qe"] = (q["votos_partido"] // q["qe"] + 1) * q["qe"] - q["votos_partido"]
-    partidos = r.get("clausula_partidos")  # só existe quando a análise rodou com os dados completos
+    partidos = r.pop("clausula_partidos", None)  # só com comparar_partidos ligado e dados completos
     r.update(clausula_barreira(cfg, base, r.get("candidatos_partido")))
-    if partidos is not None and len(partidos):
+    if cfg.clausula.get("comparar_partidos") and partidos is not None and len(partidos):
         r["clausula_partidos"] = partidos
     r["fatos"] = fatos(cfg, base, r)
     return gerar_relatorio(cfg, r, sintetico=sintetico)

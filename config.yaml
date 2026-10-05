@@ -35,6 +35,7 @@ clausula_barreira:
   pct_uf: 1.5
   ufs_minimo: 9
   deputados: 13
+  comparar_partidos: false     # true inclui a situação de todos os partidos e federações
 
 # Fontes
 fontes:

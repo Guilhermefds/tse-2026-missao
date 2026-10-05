@@ -52,7 +52,7 @@ class Config:
     referencia_2022: dict = field(default_factory=dict)
     min_eleitores_ranking: int = 5000
     clausula: dict = field(default_factory=lambda: {"pct_nacional": 2.5, "pct_uf": 1.5, "ufs_minimo": 9,
-                                                    "deputados": 13})
+                                                    "deputados": 13, "comparar_partidos": False})
     faixas_eleitorado: list = field(default_factory=lambda: [0, 5000, 10000, 20000, 50000, 100000,
                                                              200000, 500000, 1000000, 10**8])
     url_cdn: str = "https://cdn.tse.jus.br/estatistica/sead/odsele"

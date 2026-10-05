@@ -383,11 +383,14 @@ def test_clausula_de_barreira(ambiente):
     por_uf = r["clausula_por_uf"]
     assert (por_uf.faltam == (por_uf.meta_votos - por_uf.df_total).clip(lower=0)).all()
     assert por_uf.faltam_acumulado.iloc[-1] == por_uf.faltam.sum()
-    partidos = r["clausula_partidos"]                       # com dados completos: todos os partidos
-    assert partidos.destaque.sum() == 1 and set(partidos.columns) >= {"criterio_votos", "criterio_eleitos", "atingiu"}
-    fe = partidos.set_index("agremiacao").loc["FE BRASIL"]  # federação soma PT e PC do B
-    assert fe.partidos == "PC do B / PT"
+    assert "clausula_partidos" not in r                     # padrão: só o partido analisado
     assert any(r["fatos"].tema == "Cláusula de barreira")
+    from missao.metricas import clausula_barreira
+    cfg2 = carregar_config()
+    cfg2.clausula = {**cfg2.clausula, "comparar_partidos": True}
+    partidos = clausula_barreira(cfg2, base, r["candidatos_partido"], t)["clausula_partidos"]
+    assert partidos.destaque.sum() == 1 and set(partidos.columns) >= {"criterio_votos", "criterio_eleitos", "atingiu"}
+    assert partidos.set_index("agremiacao").loc["FE BRASIL"].partidos == "PC do B / PT"  # federação soma
 
 
 def test_tabela_filtros_e_restaurar():

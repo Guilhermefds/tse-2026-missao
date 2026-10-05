@@ -576,8 +576,8 @@ def _agremiacao(df: pd.DataFrame) -> pd.Series:
 
 def clausula_barreira(cfg: Config, base: pd.DataFrame, cand_partido: pd.DataFrame | None,
                       t: dict | None = None) -> dict[str, pd.DataFrame]:
-    """Cláusula de desempenho (EC 97/2017) na eleição para a Câmara: situação do partido e, com os dados
-    completos (`t`), de todos os partidos e federações.
+    """Cláusula de desempenho (EC 97/2017) na eleição para a Câmara: situação do partido e, se
+    `comparar_partidos` estiver ligado no config e houver os dados completos (`t`), de todos os partidos.
 
     Critério (a): ≥ pct_nacional dos válidos para Dep. Federal no país e ≥ pct_uf em ≥ ufs_minimo UFs.
     Critério (b): ≥ deputados eleitos em ≥ ufs_minimo UFs.
@@ -626,7 +626,7 @@ def clausula_barreira(cfg: Config, base: pd.DataFrame, cand_partido: pd.DataFram
     ], columns=["indicador", "valor"], dtype=object)
     saida = {"clausula_resumo": resumo, "clausula_por_uf": uf}
 
-    if t is not None and "partido_mun" in t and "cand_uf" in t:
+    if c.get("comparar_partidos") and t is not None and "partido_mun" in t and "cand_uf" in t:
         pm = t["partido_mun"]
         pm = pm[pm["cd_cargo"] == DEP_FEDERAL].copy()
         pm["agremiacao"] = _agremiacao(pm)
