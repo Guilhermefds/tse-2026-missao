@@ -361,7 +361,7 @@ def _int(v) -> int:
         return 0
 
 
-PADRAO_ARQ = re.compile(r"(?P<uf>[a-z]{2})(?P<mun>\d+)-c(?P<cargo>\d{4})-e(?P<ele>\d{6})-r\.json$")
+PADRAO_ARQ = re.compile(r"(?P<uf>[a-z]{2})(?P<mun>\d+)-c(?P<cargo>\d{4})-e(?P<ele>\d{6})-(?P<tp>[ruv])\.json$")
 
 
 def processar_api(cfg: Config, base: Path) -> dict[str, pd.DataFrame]:
@@ -377,7 +377,7 @@ def processar_api(cfg: Config, base: Path) -> dict[str, pd.DataFrame]:
         for uf in json.loads(cfg_mun.read_bytes()).get("abr", []):
             for mu in uf.get("mu", []):
                 nomes_mun[(uf["cd"].upper(), int(mu["cd"]))] = mu.get("nm", "")
-    for arq in base.glob("*/*/*-r.json"):
+    for arq in base.glob("*/*/*.json"):
         m = PADRAO_ARQ.search(arq.name)
         if not m:
             continue
@@ -482,7 +482,7 @@ def processar(cfg: Config) -> dict[str, pd.DataFrame]:
             tabelas["partido_mun"] = processar_votacao_partido(cfg, arq(f"votacao_partido_munzona_{cfg.ano}"))
         if com_dados(f"detalhe_votacao_munzona_{cfg.ano}"):
             tabelas.update(processar_detalhe(cfg, arq(f"detalhe_votacao_munzona_{cfg.ano}")))
-    elif api.exists() and any(api.glob("*/*/*-r.json")):
+    elif api.exists() and any(PADRAO_ARQ.search(a.name) for a in api.glob("*/*/*.json")):
         if arq(vot).exists():
             print(f"[processar] {vot}.zip foi publicado sem dados (só cabeçalhos): o TSE ainda não liberou os "
                   "consolidados. Usando a API de divulgação.")

@@ -64,7 +64,7 @@ def diagnosticar(cfg: Config) -> None:
 
     api = cfg.dir_brutos / "api"
     if api.exists():
-        arquivos = list(api.glob("*/*/*-r.json"))
+        arquivos = [a for a in api.glob("*/*/*.json") if a.name[-7:-5] in ("-r", "-u", "-v")]
         por = Counter((a.parent.parent.name, a.name.split("-c")[1][:4]) for a in arquivos)
         print(f"\n[diagnóstico] API de divulgação: {len(arquivos)} arquivos; por (eleição, cargo): {dict(por)}")
         desc = api / "eleicoes_descobertas.json"

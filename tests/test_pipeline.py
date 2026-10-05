@@ -275,3 +275,39 @@ def test_limitador_respeita_taxa():
     with ThreadPoolExecutor(8) as pool:
         list(pool.map(lambda _: lim.esperar(), range(51)))
     assert time.monotonic() - t0 >= 0.95  # 51 inícios a 50/s levam ≥ 1 s, mesmo com 8 threads
+
+
+# --------------------------------------------------------------------------- API de divulgação 2026 (arquivos reais)
+
+def test_descoberta_e_plano_de_download_com_config_real_2026(tmp_path):
+    """Usa o ele-c.json e as configs de municípios reais (amostras_api/) com respostas simuladas."""
+    import httpx
+    from collections import Counter
+    from missao import baixar
+    amostras = RAIZ / "amostras_api"
+    if not (amostras / "ele-c.json").exists():
+        pytest.skip("amostras_api/ ausente")
+    cm = {e: (amostras / f"e{e}_mun-cm.json").read_bytes() for e in ("6257", "6259")}
+
+    def handler(req):
+        p = req.url.path
+        if p.endswith("ele-c.json"):
+            return httpx.Response(200, content=(amostras / "ele-c.json").read_bytes())
+        for e, b in cm.items():
+            if p.endswith(f"mun-e00{e}-cm.json"):
+                return httpx.Response(200, content=b)
+        return httpx.Response(200, json={}) if p.endswith("-u.json") else httpx.Response(404)
+
+    original = baixar._cliente
+    baixar._cliente = lambda timeout=60: httpx.Client(transport=httpx.MockTransport(handler))
+    try:
+        cfg = carregar_config(dir_dados=tmp_path)
+        achadas = {a["cd"]: a["cargos"] for a in baixar.descobrir_eleicoes(cfg, baixar._cliente())}
+        assert achadas["6257"] == [1] and achadas["6259"] == [3, 5, 6, 7, 8]
+        taxa, baixar.REQ_POR_SEGUNDO = baixar.REQ_POR_SEGUNDO, 1e6
+        baixar.baixar_api(cfg)
+        baixar.REQ_POR_SEGUNDO = taxa
+    finally:
+        baixar._cliente = original
+    por_cargo = Counter(a.name.split("-c")[1][:4] for a in (tmp_path / "brutos" / "api").glob("*/*/*-u.json"))
+    assert por_cargo == {"0001": 5757, "0003": 5571, "0005": 5571, "0006": 5571, "0007": 5570, "0008": 1}
